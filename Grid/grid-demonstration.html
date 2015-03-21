@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+    <head lang="en">
+        <meta charset="UTF-8">
+        <title>Learn how to use the SlickGrid Wrapper</title>
+
+        <!-- CSS Stuff -->
+        <link rel="stylesheet" href="css/slick.grid.css" type="text/css"/>
+        <link rel="stylesheet" href="css/smoothness/jquery-ui.css" type="text/css"/>
+        <link rel="stylesheet" href="css/Grid.css" type="text/css"/>
+
+        <!-- demonstration.css is specific to this page, it does not affect grid, just
+        general page styling, so feel free to get rid of it for other pages-->
+        <link rel="stylesheet" href="css/demonstration.css" type="text/css"/>
+
+
+        <!-- scripts -->
+
+        <!-- library scripts, for using Slickgrid -->
+        <script type="text/javascript" src="js/lib/jquery-1.11.2.js"></script>
+        <script type="text/javascript" src="js/lib/jquery-ui.js"></script>
+        <script type="text/javascript" src="js/lib/jquery.event.drag-2.2.js"></script>
+        <script type="text/javascript" src="js/lib/slick.core.js"></script>
+        <script type="text/javascript" src="js/lib/slick.grid.js"></script>
+        <script type="text/javascript" src="js/lib/slick.autotooltips.js"></script>
+        <script type="text/javascript" src="js/lib/slick.cellrangedecorator.js"></script>
+        <script type="text/javascript" src="js/lib/slick.cellrangeselector.js"></script>
+        <script type="text/javascript" src="js/lib/slick.cellcopymanager.js"></script>
+        <script type="text/javascript" src="js/lib/slick.cellselectionmodel.js"></script>
+        <script type="text/javascript" src="js/lib/slick.editors.js"></script>
+
+        <!-- The SlickGrid wrapper script -->
+        <script type="text/javascript" src="js/Grid.js"></script>
+    </head>
+    <body>
+
+        <div id="myGrid" style="width:600px;height:500px;"></div>
+        <hr/>
+        <div><button id="loadData">load some random data</button></div>
+        <hr/>
+        <p>Highlight an area of cells with your mouse.</p>
+        <div>Cell Range Selected:<span id="cellRange"></span></div>
+        <div>selected cells highlight color<input id="colorChoice" type="color" value="#00FF00"/></div>
+        <div><button id="removeHighlighting">Remove last highlighted area</button></div>
+        <hr/>
+        <div>
+            <div>change a cell:</div>
+            <div>row(type a letter):<input type="text" id="rowToChange"/></div>
+            <div>column:<input type="text" id="colToChange"/></div>
+            <div>new value:<input type="text" id="newValue"/></div>
+            <div><button id="changeValue">change cell value</button></div>
+        </div>
+        <hr/>
+        <div>
+            <div>get the value in a cell:</div>
+            <div>row(type a letter):<input type="text" id="rowToGet"/></div>
+            <div>column:<input type="text" id="colToGet"/></div>
+            <div><button id="getValue">get value</button></div>
+            <div>cell value:<span id="cellValue"></span></div>
+        </div>
+        <hr/>
+
+
+
+        <script type="text/javascript">
+            // constants
+            var DIMENSION = 100;
+            var data;
+            var grid;
+            var currentHighlightKeys = [];
+            var highlightKeyCounter = 0;
+            var currentHighlightColor = "#00FF00";
+
+            /**
+             * A function that creates a blank data set for initializing the grid example
+             * page. The data set is of dimension DIMENSION x DIMENSION.
+             */
+            function createBlankData(){
+                var result = [];
+
+                for (var i=0; i<DIMENSION; i++){
+                    result[i] = [];
+                    for (var j=0; j<DIMENSION; j++){
+                        result[i][j] = null;
+                    }
+                }
+
+                return result;
+            }
+
+            /**
+             * A function that creates a random data set for displaying in the grid example
+             * page. The data set is of dimension DIMENSION x DIMENSION.
+             */
+            function createRandomData(){
+                var result = [];
+
+                for (var i=0; i<DIMENSION; i++){
+                    result[i] = [];
+                    for (var j=0; j<DIMENSION; j++){
+                        result[i][j] = Math.random()*1000;
+                    }
+                }
+
+                return result;
+            }
+
+            /**
+             * A handler function for when the selected cells in the grid changes. This
+             * function is registered to listen for these events in the createGrid
+             * function using the registerSelectedCellsCallBack function of the Grid
+             * Class. This function changes the background color of all selected cells
+             * to the currentHighlightColor.
+             */
+            function handleSelectedCells(startRow,startCol,endRow, endCol){
+                // write to the selected cells div, the cells that are selected
+                var out = document.getElementById("cellRange");
+                out.innerHTML = Grid.getRowLabel(startRow+1)+startCol+":"
+                                +Grid.getRowLabel(endRow+1)+endCol;
+
+
+                // highlight those cells with the current color
+                var coordinatesToHighlight = [];
+                for (var i=startRow; i<=endRow; i++){
+                    for (var j=startCol; j<=endCol; j++){
+                        coordinatesToHighlight.push([i, j]);
+                    }
+                }
+                var key = "key" + highlightKeyCounter;
+                grid.setCellColors(coordinatesToHighlight,currentHighlightColor, key);
+                currentHighlightKeys.push(key);
+                highlightKeyCounter++;
+            }
+
+            /**
+             * This function handles the event that the removeHighlighting button is
+             * clicked by removing the most recent cell background color change. This
+             * is achieved by calling the removeCellColors method of the Grid class with
+             * the most key used to create the most recent background color change as
+             * stored in the currentHighlightKeys array.
+             */
+            function removeHighlightedArea(){
+                grid.removeCellColors(currentHighlightKeys.pop());
+            }
+
+            /**
+             * This function creates a new grid applying it to the "myGrid" div on the
+             * page. It then creates a blank data set and displays it in the grid.
+             * It also registers the handleSelectedCells function as a listener for
+             * the event that user selected cell ranges in the grid change.
+             */
+            function createGrid(){
+                // construct the Grid object with the id of the html container element
+                // where it should be placed (probably a div) as an argument
+                grid  = new Grid("myGrid");
+
+                // set the data to be displayed which must be in 2D array form
+                data = createBlankData();
+                grid.setData(data);
+
+                // display the data
+                grid.fillUpGrid();
+
+                // register a function to be called each time a new set of cells are
+                // selected by a user
+                grid.registerSelectedCellCallBack(handleSelectedCells);
+
+            }
+
+            /**
+             * This function loads random numeric data into the already created and
+             * displayed Grid. It is a handler for the event that the "loadData" button
+             * is clicked.
+             */
+            function loadRandomData(){
+                data = createRandomData();
+                grid.setData(data);
+                grid.fillUpGrid();
+            }
+
+            /**
+             * This function is a handler for the event that the "colorChoice" input
+             * changes value as a result of user interaction. It responds by updating
+             * the currentHighlightColor variable to the new value of the input.
+             */
+            function handleColorChange(){
+                var colorChoice = document.getElementById("colorChoice").value;
+                currentHighlightColor = colorChoice;
+            }
+
+            /**
+             * This function changes the value of a user determined cell in the grid
+             * to a user determined value. It is a handler for the event that the
+             * "changeValue" button is clicked.
+             */
+            function changeCellContents(){
+                var row = document.getElementById("rowToChange").value;
+                row = Grid.getRowNumber(row);
+                var column = document.getElementById("colToChange").value;
+                column = parseInt(column);
+                var newContents = document.getElementById("newValue").value;
+
+                grid.updateCellContents(row,column, newContents);
+            }
+
+            function getCellContents(){
+                var row = document.getElementById("rowToGet").value;
+                row = Grid.getRowNumber(row);
+                var column = document.getElementById("colToGet").value;
+                column = parseInt(column);
+
+                var value = grid.getDataPoint(row, column);
+                document.getElementById("cellValue").innerHTML = value;
+            }
+
+            /**
+             * addEvent - This function adds an event handler to an html element in
+             * a way that covers many browser types.
+             * @param elementId - the string id of the element to attach the handler to
+             * or a reference to the element itself.
+             * @param eventType - a string representation of the event to be handled
+             * without the "on" prefix
+             * @param handlerFunction - the function to handle the event
+             */
+            function addEvent(elementId, eventType, handlerFunction) {
+                'use strict';
+
+                var element;
+
+                if (typeof(elementId) === "string"){
+                    element = document.getElementById(elementId);
+                } else {
+                    element = elementId;
+                }
+
+                if (element.addEventListener) {
+                    element.addEventListener(eventType, handlerFunction, false);
+                } else if (window.attachEvent) {
+                    element.attachEvent("on" + eventType, handlerFunction);
+                }
+            } // end of function addEvent
+
+
+            /**
+             * This function handles the window load event. It initializes and fills the
+             * grid with blank data and sets up the event handlers on the
+             */
+            function init(){
+                createGrid();
+
+                addEvent("loadData", "click", loadRandomData);
+                addEvent("colorChoice", "change", handleColorChange);
+                addEvent("removeHighlighting", "click", removeHighlightedArea);
+                addEvent("changeValue", "click", changeCellContents);
+                addEvent("getValue", "click", getCellContents);
+            }
+
+            window.onload = init;
+
+        </script>
+    </body>
+</html>
