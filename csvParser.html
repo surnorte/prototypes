@@ -1,0 +1,487 @@
+<html>
+ 
+<head>
+	
+	<script type='text/javascript' src='http://ajax.googleapis.com/ajax/libs/jquery/1.4/jquery.min.js'></script>
+
+<style type="text/css">
+	
+	table {
+	  border-collapse: collapse;
+	  width: 100%;
+	}
+	th, td {
+	  padding: 0.25rem;
+	  text-align: left;
+	  border: 1px solid #ccc;
+	}
+
+
+</style>
+ 
+<script>
+
+    // Check for the various File API support.
+	if (window.File && window.FileReader && window.FileList && window.Blob) {
+	  // Great success! All the File APIs are supported.
+	} else {
+	  alert('The File APIs are not fully supported in this browser.');
+	}
+
+    var distinctColors = [
+        '#00FF00',
+        '#0000FF',
+        '#FF0000',
+        '#01FFFE',
+        '#FFA6FE',
+        '#FFDB66',
+        '#006401',
+        '#010067',
+        '#95003A',
+        '#007DB5',
+        '#FF00F6',
+        '#FFEEE8',
+        '#774D00',
+        '#90FB92',
+        '#0076FF',
+        '#D5FF00',
+        '#FF937E',
+        '#6A826C',
+        '#FF029D',
+        '#FE8900',
+        '#7A4782',
+        '#7E2DD2',
+        '#85A900',
+        '#FF0056',
+        '#A42400',
+        '#00AE7E',
+        '#683D3B',
+        '#BDC6FF',
+        '#263400',
+        '#BDD393',
+        '#00B917',
+        '#9E008E',
+        '#001544',
+        '#C28C9F',
+        '#FF74A3',
+        '#01D0FF',
+        '#004754',
+        '#E56FFE',
+        '#788231',
+        '#0E4CA1',
+        '#91D0CB',
+        '#BE9970',
+        '#968AE8',
+        '#BB8800',
+        '#43002C',
+        '#DEFF74',
+        '#00FFC6',
+        '#FFE502',
+        '#620E00',
+        '#008F9C',
+        '#98FF52',
+        '#7544B1',
+        '#B500FF',
+        '#00FF78',
+        '#FF6E41',
+        '#005F39',
+        '#6B6882',
+        '#5FAD4E',
+        '#A75740',
+        '#A5FFD2',
+        '#FFB167',
+        '#009BFF',
+        '#E85EBE'];
+
+    function BioFeature(feaLabel){
+        this.parentFeature=null;
+        this.featureLabel=feaLabel;
+        this.description='';
+        this.topLeftCoords=-1;
+        this.bottomRightCoords=-1;
+        this.topLeftValue='';
+        this.bottomRightValue='';
+        this.relativeToLeftX=-1;
+        this.relativeToLeftY=-1;
+        this.color='';
+        this.typeOfParent=null; // Area, Repetitive Area, Generic
+        this.typeOfChild=null;  // Data, Range, Unique
+        this.bioFeatures=[];
+        this.applyNumberOfTimes=0;
+        this.importData=false;
+    }
+
+	$(function() {
+
+	    $("table").delegate('td','click', function(e) {
+	        if (e.type == 'click') {
+	         	if ($(this).attr("style")){
+	          		$(this).removeAttr("style");
+	          	}else{
+                    $(this).attr("style","background: "+ distinctColors[colorPointer] +";");
+	          	}
+
+                var cellvalue = $(this).text();
+                var cellID = $(this).attr("id");
+                if(topLeftCoordSelected == true){
+                    $("#topLeftValue").val(cellvalue);
+                    $("#topLeftCoord").val(cellID);
+                    topLeftCoordSelected = false;
+                    console.log("topLeftCoordSelected " + topLeftCoordSelected);
+                } else if ( bottomRightCoordSelected == true){
+                    $("#bottomRightValue").val(cellvalue);
+                    $("#bottomRightCoord").val(cellID);
+                    bottomRightCoordSelected = false;
+                    console.log("bottomRightCoordSelected " + bottomRightCoordSelected);
+                }
+
+	        }
+	    });
+
+	});
+
+
+</script>
+ 
+</head>
+<body>
+ 
+	<input type="file" id="files" name="files[]" multiple />
+	<output id="list"></output><br> <br>
+
+    Label/ID <input type="text" id="featureLabel" /> -
+    Top Left:<input type="text" id="topLeftCoord" /> - Top Left Value<input type="text" id="topLeftValue"  /> -
+    Bottom Right:<input type="text" id="bottomRightCoord" /> - Bottom Right Value :<input type="text" id="bottomRightValue" /><br>
+
+    <input type="radio" name="parent-radio" value="repetitive" checked>Repetitive Area <br>
+    <input type="radio" name="parent-radio" value="area" >Area <br>
+    <input type="radio" name="parent-radio" value="General" >General <br>
+
+    <br><br>
+
+    <input type="radio" name="child-radio" value="data" checked>Data/Plate <br>
+    <input type="radio" name="child-radio" value="range" >Set of Values <br>
+    <input type="radio" name="child-radio" value="unique" >One Value <br>
+
+    <br>
+    <a href="JavaScript:void(0);" id="btn-add">Add &raquo;</a> <br>
+    <select name="selectto" id="select-to" size="5">
+        <!--<option value="-1">FEATURE LIST</option>-->
+    </select><br>
+    <a href="JavaScript:void(0);" id="btn-remove">&laquo; Remove</a><br>
+    <input type="button" id="btn-apply-features" value="Apply" /><br><br>
+
+    <a href="JavaScript:void(0);" id="btn-add-child">Add &raquo;</a> <br>
+    <select name="selecttochild" id="select-to-child" size="5">
+        <!--<option value="-1">FEATURE CHILD</option>-->
+    </select><br>
+    <a href="JavaScript:void(0);" id="btn-remove-child">&laquo; Remove</a><br>
+	
+	<Br><Br>
+
+	<table id="outputTable">	
+	</table>
+ 
+	<script>
+
+        var topLeftCoordSelected = false;
+        var bottomRightCoordSelected = false;
+
+        var table = document.getElementById('outputTable');
+
+        var colorPointer = 0;
+        var biofeatures = [];
+        var matrix = [];
+        var lines = [];
+        var colsSize =-1;
+        var rowsSize =-1;
+        var numberOfFeatures =-1;
+        var numberOfFeaturesCHILD =-1;
+
+        function getRowCol(coordinates){
+            var colIdx = coordinates.indexOf('_');
+            var col = coordinates.substring(3,colIdx);
+            var row = coordinates.substring(4+colIdx);
+
+            return {col: parseInt(col), row: parseInt(row)};
+        }
+
+        function applyFeatures(){
+
+            for(var i = 0; i < biofeatures.length; i++){
+                var currentFeature = biofeatures[i];
+
+                var breakLabel = currentFeature.topLeftValue.trim();
+
+                var startPoint = currentFeature.topLeftCoords;
+                var endPoint = currentFeature.bottomRightCoords;
+                var relativeCol = currentFeature.relativeToLeftX;
+
+                var numOfRows = endPoint.row - startPoint.row;
+                var numOfCols = endPoint.col - startPoint.col;
+                var colorFeature = distinctColors[currentFeature.color];
+
+                for(var j = startPoint.row; j<rowsSize; j++){
+
+                    var newLabel = ($("#col"+startPoint.col+"_row"+j).text()).trim();
+                    if(breakLabel == newLabel){
+
+                        var rowIdx;
+                        for(rowIdx = 0; rowIdx<=numOfRows; rowIdx++) {
+                            for(var colIdx = 0; colIdx<=numOfCols; colIdx++) {
+                                $("#col" + (colIdx+relativeCol) + "_row" + (rowIdx+j)).attr("style", "background: " + colorFeature + ";");
+                            }
+                        }
+
+//                        var rowIdx;
+//                        for(rowIdx = j; rowIdx<=numOfRows+j; rowIdx++) {
+//                            for(var colIdx = startPoint.col; colIdx<=numOfCols; colIdx++) {
+//                                $("#col" + colIdx + "_row" + rowIdx).attr("style", "background: " + colorFeature + ";");
+//                            }
+//                        }
+
+                        for(var idxChild = 0; idxChild < currentFeature.bioFeatures.length; idxChild++) {
+                            var currentChild = currentFeature.bioFeatures[idxChild];
+
+                            var startPointChild = currentChild.topLeftCoords;
+                            var endPointChild = currentChild.bottomRightCoords;
+                            var relativeChildCol = currentChild.relativeToLeftX;
+                            var relativeChildRow= currentChild.relativeToLeftY;
+
+                            var numOfRowsChild = endPointChild.row - startPointChild.row;
+                            var numOfColsChild = endPointChild.col - startPointChild.col;
+                            var colorFeatureChild = distinctColors[currentChild.color];
+
+                            for(var rowIdxChild = 0; rowIdxChild<=numOfRowsChild; rowIdxChild++) {
+                                for(var colIdxChild = 0; colIdxChild<=numOfColsChild; colIdxChild++) {
+                                    $("#col" + (colIdxChild+relativeChildCol+relativeCol) + "_row" + (rowIdxChild+relativeChildRow+j)).attr("style", "background: " + colorFeatureChild + ";");
+                                }
+                            }
+
+                        }
+
+                        j=j+rowIdx-1;
+                    }
+                    console.log("ROwS " + j);
+                }
+
+            }
+        }
+
+        $( "#btn-apply-features" ).click(function() {
+            applyFeatures();
+        });
+
+        function addFeature(isParent){
+            var newFeature = new BioFeature($('#featureLabel').text());
+            newFeature.topLeftCoords=getRowCol($('#topLeftCoord').val());
+            newFeature.topLeftValue=$('#topLeftValue').val();
+            newFeature.bottomRightCoords=getRowCol($('#bottomRightCoord').val()); // this might be null
+            newFeature.bottomRightValue=$('#bottomRightValue').val();
+            newFeature.relativeToLeftX = newFeature.topLeftCoords.col;
+            newFeature.relativeToLeftY = newFeature.topLeftCoords.row;
+            if (isParent) {
+                console.log($('input[name=parent-radio]:checked').val());
+                newFeature.typeOfParent = $('input[name=parent-radio]:checked').val();
+            } else {
+                console.log($('input[name=child-radio]:checked').val());
+                newFeature.typeOfChild = $('input[name=child-radio]:checked').val();
+
+                // When it is one value set both top and bottom properties to
+                // the same value.
+                if(newFeature.typeOfChild=='unique'){
+                    newFeature.bottomRightCoords=newFeature.topLeftCoords;
+                    newFeature.bottomRightValue=newFeature.topLeftValue;
+                }
+                newFeature.parentFeature = biofeatures[$("#select-to option:selected").val()];
+                newFeature.parentFeature.bioFeatures.push(newFeature);
+                newFeature.relativeToLeftX = newFeature.topLeftCoords.col - newFeature.parentFeature.topLeftCoords.col;
+                newFeature.relativeToLeftY = newFeature.topLeftCoords.row - newFeature.parentFeature.topLeftCoords.row;
+                newFeature.importData = true;
+            }
+            newFeature.color=colorPointer;
+            return newFeature;
+        }
+
+        $('#btn-add-child').click(function(){
+            $('#select-to-child').append("<option value='"+(numberOfFeaturesCHILD+1)+"'>"+$('#featureLabel').val()+"</option>");
+            addFeature(false);
+            colorPointer++;
+            console.log(biofeatures);
+            $('#featureLabel').val('');
+        });
+
+        $('#btn-add').click(function(){
+            $('#select-to').append("<option value='"+(numberOfFeatures+1)+"'>"+$('#featureLabel').val()+"</option>");
+            biofeatures.push(addFeature(true));
+            colorPointer++;
+            console.log(biofeatures);
+            $('#featureLabel').val('');
+        });
+
+        $('#btn-remove').click(function(){
+            $('#select-to option:selected').each( function() {
+                $(this).remove();
+                numberOfFeatures--;
+            });
+        });
+
+
+        $( "#topLeftCoord" ).focus(function() {
+            topLeftCoordSelected = true;
+            console.log("topLeftCoordSelected " + topLeftCoordSelected);
+        });
+
+        $( "#bottomRightCoord" ).focus(function() {
+            bottomRightCoordSelected = true;
+            console.log("bottomRightCoordSelected " + bottomRightCoordSelected);
+        });
+
+
+      // Create an HTML table with the data
+	  function fillUpGrid(){
+
+		for(var j = 0; j<rowsSize; j++){
+
+			var tableRow = table.appendChild(document.createElement('tr'));
+
+			var info = matrix[j];
+
+            // Include Column sequence the first time.
+            if (j==0){
+                for(var k = 0; k <= colsSize; k++){
+                    //append the cell to the row
+                    var cell = tableRow.appendChild(document.createElement('td'));
+                    if (k!=0){
+                        cell.appendChild(document.createTextNode(k));
+                    }
+                }
+                tableRow = table.appendChild(document.createElement('tr'));
+            }
+
+
+            // Include row sequence in first column
+            var cell = tableRow.appendChild(document.createElement('td'));
+            cell.appendChild(document.createTextNode(j+1));
+
+            for(var k = 0; k < colsSize; k++){
+
+				var cell = tableRow.appendChild(document.createElement('td'));
+
+                // Include class with row and col number, so coordinates are
+                // always present.
+                cell.setAttribute("id","col" + k  + "_row" + j);
+
+                // check if there is still position for data
+                // if so include the data into cell
+				if (k < info.length ){
+					cell.appendChild(document.createTextNode(info[k]));
+				}else{
+                    // Otherwise, it just includes a blank character
+                    // into the cell.
+					cell.appendChild(document.createTextNode("."));
+				}
+
+
+			}
+
+		}
+
+
+	}
+
+
+	function grid2Array(text, lineTerminator, cellTerminator) {
+
+        //break the lines apart
+        lines = text.split(lineTerminator);
+        rowsSize = lines.length;
+
+        for(var j = 0; j<rowsSize; j++){
+
+            var information = lines[j].split(cellTerminator);
+
+            if (information.length > colsSize){
+                colsSize = information.length;
+            }
+
+            matrix[j] = [];
+            for(var k = 0; k < information.length; k++){
+
+                matrix[j][k] = new Array(information.length);
+                matrix[j][k] = information[k];
+
+            }
+
+        }
+
+	}
+
+	  //function handleFileSelect(evt) {
+	function handleFileSelect(files) {
+		//var files = evt.target.files; // FileList object
+
+		// Loop through the FileList and populate the 'outputTable' with the data
+		for (var i = 0, f; f = files[i]; i++) {
+
+		  var reader = new FileReader();
+
+		  // Closure to capture the file information.
+		  reader.onload = (function(theFile) {
+			return function(e) {
+			
+			  //call the parse function with the proper line terminator and cell terminator
+			  //parseCSV(e.target.result, '\n', '\t');
+			  grid2Array(e.target.result, '\n', '\t');
+              fillUpGrid();
+
+			};
+		  })(f);
+
+		  // Read the file as text
+		  reader.readAsText(f);
+		  
+		}
+	  }
+
+      document.getElementById('files').addEventListener('change', handleFileSelect, false);
+
+	  // Attach listener for when a file is first dragged onto the screen
+		document.addEventListener('dragenter', function(e) {
+			e.stopPropagation();
+			e.preventDefault();
+
+			// Show an overlay so it is clear what the user needs to do
+			document.body.classList.add('show-overlay');
+		}, false);
+
+		// Attach a listener for while the file is over the browser window
+		document.addEventListener('dragover', function(e) {
+			e.stopPropagation();
+			e.preventDefault();
+		}, false);
+
+		// Attach a listener for when the file is actually dropped
+		document.addEventListener('drop', function(e) {
+			e.stopPropagation();
+			e.preventDefault();
+
+			// Hides the overlay
+			document.body.classList.remove('show-overlay');
+			
+			// Process the files
+			handleFileSelect(e.dataTransfer.files);
+			//handleFileSelect(e);
+			
+		}, false);
+
+	</script>
+ 
+
+		<h1>Drag CSV file HERE !!!</small></h1>
+		<div id="container"></div>
+		<div id="overlay"></div>
+        
+
+</body>
+</html>
