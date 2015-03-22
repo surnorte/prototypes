@@ -52,14 +52,14 @@ function Grid(containerID){
 			colnum = Math.floor(colnum);
 			var rownum = Math.ceil((colorArray.length - 1) / colnum);
 			
-			var cellStr = "<table style='width:100%'>";
+			var cellStr = "<table style='width:100%;height:100%'>";
 			cellStr += "<th rowspan='" + (rownum+1) + "'>" + colorArray[0] +"</th>"
 			var i, j=0;
 			var colorIdx = 1;
 			for (i=0; i < colnum; i++) {
 				cellStr += "<tr>";
 				for (j=0; (j < rownum) && (colorIdx < colorArray.length); j++) {
-					cellStr += "<td bgcolor='" + colorArray[colorIdx]+ "'>&nbsp </td>" ;
+					cellStr += "<td bgcolor='" + colorArray[colorIdx]+ "'> </td>" ;
 					colorIdx++;
 				}
 				cellStr += "</tr>";
