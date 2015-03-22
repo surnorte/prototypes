@@ -63,7 +63,7 @@ function Grid(containerID){
             name: "0",
             field: "0",
             width: 30,
-            resizable: false,
+            resizable: true,
             selectable: false,
             focusable: false
         });
