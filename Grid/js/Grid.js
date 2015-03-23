@@ -23,6 +23,12 @@ function Grid(containerID){
     this.selectedCellsCallBacks = [];
     this.colorCounter = 0;
     this.container = containerID;
+    
+    // current selected cells fields
+    this.selectedStartRow = null;
+    this.selectedEndRow = null;
+    this.selectedStartCol = null;
+    this.selectedEndCol = null;
 
     /**
      * A setter for the dataset to display in the grid. The underlying SlickGrid object
@@ -178,6 +184,23 @@ function Grid(containerID){
     this.removeCellColors = function(key){
         this.grid.removeCellCssStyles(key);
     };
+    
+    /**
+     * This function returns the currently selected cell bounds in the form of an array
+     * where the:
+     *      0th position - holds the start cell row number
+     *      1st position - holds the start cell column number
+     *      2nd position - holds the end cell row number
+     *      3rd position - holds the end cell column number
+     * @returns {*[]} - the bounds of the currently selected cells in the grid
+     */
+    this.getSelectedCellBounds = function(){
+        return [this.selectedStartRow,
+                this.selectedStartCol,
+                this.selectedEndRow,
+                this.selectedEndCol
+               ];
+    };
 
     /**
      * This function registers a function to be called in an observer type pattern,
@@ -254,6 +277,11 @@ function Grid(containerID){
                )
            }
         });
+        
+        _self.selectedStartRow = data[0].fromRow;
+        _self.selectedStartCol = data[0].fromCell;
+        _self.selectedEndRow = data[0].toRow;
+        _self.selectedEndCol = data[0].toCell;
     }
 }
 
