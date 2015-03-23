@@ -201,6 +201,24 @@ function Grid(containerID){
                 this.selectedEndCol
                ];
     };
+    
+     /**
+     * This function returns an array of all of the cell coordinates that are currently
+     * selected, where the coordinates are arrays of the form [rowNumber, columnNumber].
+     * @returns {Array|*} - an array of arrays where the inner arrays are the coordinates
+     * of selected cells.
+     */
+    this.getSelectedCells = function(){
+        result = [];
+
+        for(var i=this.selectedStartRow; i<=this.selectedEndRow; i++){
+            for(var j=this.selectedStartCol; i<=this.selectedEndCol; j++){
+                result.push([i,j]);
+            }
+        }
+
+        return result;
+    };
 
     /**
      * This function registers a function to be called in an observer type pattern,
