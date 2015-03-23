@@ -59,6 +59,13 @@
             <div>cell value:<span id="cellValue"></span></div>
         </div>
         <hr/>
+        <div>
+            <div>get all currently highlighted cells by color:</div>
+            <div>color<input id="highlightColor" type="color" value="#00FF00"/></div>
+            <div><button id="getHighlightedCells">get highlighted cells</button></div>
+            <div>Currently highlighted Cells:<div id="highlightedCells"></div></div>
+        </div>
+        <hr/>
 
 
 
@@ -113,6 +120,7 @@
              * to the currentHighlightColor.
              */
             function handleSelectedCells(startRow,startCol,endRow, endCol){
+
                 // write to the selected cells div, the cells that are selected
                 var out = document.getElementById("cellRange");
                 out.innerHTML = Grid.getRowLabel(startRow+1)+startCol+":"
@@ -214,6 +222,28 @@
             }
 
             /**
+             * This function is an event handler for user clicks on the
+             * getHighlightedCells button. It demonstrates how to use the
+             * getHighlightedCells function of the Grid class.
+             */
+            function getHighlightedCellsByColor(){
+
+                var color = document.getElementById("highlightColor").value;
+                var highlightedCellsString = "";
+                var outputElement = document.getElementById("highlightedCells");
+
+                var highlightedCells = grid.getHighlightedCells(color);
+
+                for(var i=0; i<highlightedCells.length; i++){
+                    var currentCoordinates = highlightedCells[i];
+                    highlightedCellsString += "("+currentCoordinates[0]+","
+                    + currentCoordinates[1]+"),";
+                }
+
+                outputElement.innerHTML = highlightedCellsString;
+            }
+
+            /**
              * addEvent - This function adds an event handler to an html element in
              * a way that covers many browser types.
              * @param elementId - the string id of the element to attach the handler to
@@ -253,6 +283,7 @@
                 addEvent("removeHighlighting", "click", removeHighlightedArea);
                 addEvent("changeValue", "click", changeCellContents);
                 addEvent("getValue", "click", getCellContents);
+                addEvent("getHighlightedCells", "click", getHighlightedCellsByColor);
             }
 
             window.onload = init;
