@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html>
+    <head lang="en">
+        <meta charset="UTF-8">
+        <title>Assign Plate Labels</title>
+
+        <!-- CSS Stuff -->
+        <link rel="stylesheet" href="css/slick.grid.css" type="text/css"/>
+        <link rel="stylesheet" href="css/smoothness/jquery-ui.css" type="text/css"/>
+        <link rel="stylesheet" href="css/Grid.css" type="text/css"/>
+
+        <!-- demonstration.css is specific to this page, it does not affect grid, just
+        general page styling, so feel free to get rid of it for other pages-->
+        <link rel="stylesheet" href="css/demonstration.css" type="text/css"/>
+
+
+        <!-- scripts -->
+
+        <!-- library scripts, for using Slickgrid -->
+        <script type="text/javascript" src="js/lib/jquery-1.11.2.js"></script>
+        <script type="text/javascript" src="js/lib/jquery-ui.js"></script>
+        <script type="text/javascript" src="js/lib/jquery.event.drag-2.2.js"></script>
+        <script type="text/javascript" src="js/lib/slick.core.js"></script>
+        <script type="text/javascript" src="js/lib/slick.grid.js"></script>
+        <script type="text/javascript" src="js/lib/slick.autotooltips.js"></script>
+        <script type="text/javascript" src="js/lib/slick.cellrangedecorator.js"></script>
+        <script type="text/javascript" src="js/lib/slick.cellrangeselector.js"></script>
+        <script type="text/javascript" src="js/lib/slick.cellcopymanager.js"></script>
+        <script type="text/javascript" src="js/lib/slick.cellselectionmodel.js"></script>
+        <script type="text/javascript" src="js/lib/slick.editors.js"></script>
+
+        <!-- The SlickGrid wrapper script -->
+        <script type="text/javascript" src="js/Grid.js"></script>
+    </head>
+    <body>
+		<h2>Create Plate: (step 3 of 3)</h2>
+		<div id="gridPanel" style="float:left; width: 70%">
+			<div id="myGrid" style="width:100%;height:650px;"></div>
+		</div>
+		<div id="labelPanel" style="float:right;width:29%;">
+			<p>Highlight an area of cells with your mouse.</p>
+			<div>Cell Range Selected:<span id="cellRange"></span></div>
+			<div>selected cells highlight color<input id="colorChoice" type="color" value="#D5E3E3"/></div>
+			<div><button id="removeHighlighting">Remove All Highlighting</button></div>
+			<hr/>
+			<div id="tabs-1">
+				<ul>
+					<li><a href="#tabs-2">Well Grouping</a></li>
+					<li><a href="#tabs-3">Plate</a></li>
+					<li><a href="#tabs-4">Plate Set</a></li>
+				</ul>
+				<div id="tabs-2">
+					<h1>Well Grouping Labels:</h1>
+					<button id="addLabelButton" class="ui-state-default ui-corner-all">Add New Label</button>
+					<button id="addDoseStepButton" class="ui-state-default ui-corner-all">Add Dose Step</button>
+					<button id="importCmpListButton" class="ui-state-default ui-corner-all">Import Compound List??</button>
+					<div class="toggler">
+					  <div id="addLabelPanel" class="ui-widget-content ui-corner-all">
+						<div>
+							<h4>New Label Details:</h4>
+							<div>Category:<input type="text" id="newCatValue"/></div>
+							<div>Label:<input type="text" id="newLabelValue"/></div>
+							<div>Color:<input type="color" id="newColorValue" value="#FFFF00"/></div>
+							<h4>Apply To Well:</h4>
+							<div>Row:<input type="text" id="rowToChange"/></div>
+							<div>Column:<input type="text" id="colToChange"/></div>
+							<div><button id="addNewLabel">Add New Label To Selected Cells</button></div>
+						</div>
+					  </div>
+					</div>
+					<div id="categoryList"/>
+				</div>
+				<div id="tabs-3">
+					<h1>Plate Level Labels:</h1>
+					<p></p>
+				</div>
+				<div id="tabs-4">
+					<h1>Plate Set Labels:</h1>
+					<p></p>
+				</div>
+			</div>
+		</div>
+		
+        <script type="text/javascript">
+            // constants
+            var DIMENSION = 100;
+            var data;
+			var categories = [];
+			var cellCats = [];
+			var legendCellRef = [];
+            var grid;
+            var currentHighlightKeys = [];
+            var highlightKeyCounter = 0;
+            var currentHighlightColor = "#D5E3E3";
+
+            /**
+             * A function that creates a blank data set for initializing the grid example
+             * page. The data set is of dimension DIMENSION x DIMENSION.
+             */
+            function createBlankData(){
+                var result = [];
+
+                for (var i=0; i<DIMENSION; i++){
+                    result[i] = [];
+                    for (var j=0; j<DIMENSION; j++){
+                        result[i][j] = null;
+                    }
+                }
+                return result;
+            }
+
+            /**
+             * A function that creates a random data set for displaying in the grid example
+             * page. The data set is of dimension DIMENSION x DIMENSION.
+             */
+            function createRandomData(){
+                var result = [];
+                for (var i=0; i<DIMENSION; i++){
+                    result[i] = [];
+                    for (var j=0; j<DIMENSION; j++){
+                        result[i][j] = "L" + Math.floor(Math.random()*100);
+                    }
+                }
+                return result;
+            }
+
+            /**
+             * A handler function for when the selected cells in the grid changes. This
+             * function is registered to listen for these events in the createGrid
+             * function using the registerSelectedCellsCallBack function of the Grid
+             * Class. This function changes the background color of all selected cells
+             * to the currentHighlightColor.
+             */
+            function handleSelectedCells(startRow,startCol,endRow, endCol){
+                // write to the selected cells div, the cells that are selected
+                var out = document.getElementById("cellRange");
+                out.innerHTML = Grid.getRowLabel(startRow+1)+startCol+":"
+                                +Grid.getRowLabel(endRow+1)+endCol;
+
+
+                // highlight those cells with the current color
+                var coordinatesToHighlight = [];
+                for (var i=startRow; i<=endRow; i++){
+                    for (var j=startCol; j<=endCol; j++){
+                        coordinatesToHighlight.push([i, j]);
+                    }
+                }
+                var key = "key" + highlightKeyCounter;
+                grid.setCellColors(coordinatesToHighlight,currentHighlightColor, key);
+                currentHighlightKeys.push(key);
+                highlightKeyCounter++;
+            }
+
+            /**
+             * This function handles the event that the removeHighlighting button is
+             * clicked by removing the most recent cell background color change. This
+             * is achieved by calling the removeCellColors method of the Grid class with
+             * the most key used to create the most recent background color change as
+             * stored in the currentHighlightKeys array.
+             */
+            function removeAllHighlightedCells(){
+				while (currentHighlightKeys.length > 0) {
+					grid.removeCellColors(currentHighlightKeys.pop());
+					
+				}
+				// hack
+				grid.selectedCells = [];
+            }
+
+            /**
+             * This function creates a new grid applying it to the "myGrid" div on the
+             * page. It then creates a blank data set and displays it in the grid.
+             * It also registers the handleSelectedCells function as a listener for
+             * the event that user selected cell ranges in the grid change.
+             */
+            function createGrid(){
+                // construct the Grid object with the id of the html container element
+                // where it should be placed (probably a div) as an argument
+                grid  = new Grid("myGrid");
+
+                // set the data to be displayed which must be in 2D array form
+                data = createBlankData();
+                grid.setData(data);
+
+                // display the data
+                grid.fillUpGrid();
+
+                // register a function to be called each time a new set of cells are
+                // selected by a user
+                grid.registerSelectedCellCallBack(handleSelectedCells);
+
+            }
+
+            /**
+             * This function loads random numeric data into the already created and
+             * displayed Grid. It is a handler for the event that the "loadData" button
+             * is clicked.
+             */
+            function loadRandomData(){
+                data = createRandomData();
+                grid.setData(data);
+                grid.fillUpGrid();
+            }
+
+            /**
+             * This function is a handler for the event that the "colorChoice" input
+             * changes value as a result of user interaction. It responds by updating
+             * the currentHighlightColor variable to the new value of the input.
+             */
+            function handleColorChange(){
+                var colorChoice = document.getElementById("colorChoice").value;
+                currentHighlightColor = colorChoice;
+            }
+
+            /**
+             * This function changes the value of a user determined cell in the grid
+             * to a user determined value. It is a handler for the event that the
+             * "changeValue" button is clicked.
+             */
+            function changeCellContents(){
+                var row = document.getElementById("rowToChange").value;
+                row = Grid.getRowNumber(row);
+                var column = document.getElementById("colToChange").value;
+                column = parseInt(column);
+                var newContents = document.getElementById("newValue").value;
+
+                grid.updateCellContents(row,column, newContents);
+            }
+
+            function getCellContents(){
+                var row = document.getElementById("rowToChange").value;
+                row = Grid.getRowNumber(row);
+                var column = document.getElementById("colToChange").value;
+                column = parseInt(column);
+
+                var value = grid.getDataPoint(row, column);
+                document.getElementById("cellValue").innerHTML = value;
+            }
+			
+			function onCatColorChange(){
+				console.log("change:"+ this.id);
+				var idArr = this.id.split("-");
+				var cat = idArr[1];
+				var label = idArr[2];
+				console.log("cat:"+cat);
+				console.log("cat:"+label);
+                console.log(legendCellRef[cat][label]);
+				// update all cells with cat and label (messy?)
+				for (var cellRef in legendCellRef[cat][label]) {
+					// what are you doing here ??, define some sort of structure !!!
+					var cellRefArr = legendCellRef[cat][label][cellRef].split("-");
+					var row = cellRefArr[0];
+					var column = cellRefArr[1];
+					cellCats[row][column]["cats"][cat] = this.value;
+					
+					// update actual grid cell
+					var newContents = cellCats[row][column]["value"];
+					for (var catKey in cellCats[row][column]["cats"]) {
+						newContents += "," + cellCats[row][column]["cats"][catKey];
+					}
+					grid.updateCellContents(row, column, newContents);
+				}				
+            }
+			
+			function updateCategoryList() {
+				var newDiv = document.createElement("div");
+				var newH3 = document.createElement("h3");
+				var h3Text = document.createTextNode('Categories:');
+				newH3.appendChild(h3Text);
+				newDiv.appendChild(newH3);
+				for (var catKey in categories) {
+					var newUl = document.createElement("ul");
+					var newStrong = document.createElement("strong");
+					newStrong.appendChild(document.createTextNode(catKey));
+					newDiv.appendChild(newStrong);
+					for (var labelKey in categories[catKey]) {
+						var newLi = document.createElement("li");
+						newLi.appendChild(document.createTextNode(labelKey));
+						var newInput = document.createElement("input");
+						newInput.id = "color-"+catKey + "-"+labelKey;
+						newInput.type = "color";
+						newInput.defaultValue = categories[catKey][labelKey];
+						newInput.value = categories[catKey][labelKey];
+						newLi.appendChild(newInput);
+						newUl.appendChild(newLi);
+					}
+					newDiv.appendChild(newUl);
+				}
+				document.getElementById("categoryList").innerHTML = newDiv.innerHTML;
+				// add change event to category color
+				$("#color-"+catKey + "-"+labelKey).change(onCatColorChange);
+			}
+			
+			
+			/**
+             * This function changes the style of a particular cell
+             */
+            function addNewLabel(){
+				var row = document.getElementById("rowToChange").value;
+                row = Grid.getRowNumber(row);
+                var column = document.getElementById("colToChange").value;
+                column = parseInt(column);
+				var cat = document.getElementById("newCatValue").value;
+				var label = document.getElementById("newLabelValue").value;
+				var color = document.getElementById("newColorValue").value;
+				//var newContents = cat + label +","+ color;
+
+				if (categories[cat] == null) {
+					categories[cat] = [];
+					categories[cat][label] = color;
+				} else {
+					console.log("found:" + categories[cat][label]);
+					categories[cat][label] = color;
+				}
+				
+				// messy hack
+				if (cellCats[row] == null) {
+					cellCats[row] = [];
+				}
+				if (cellCats[row][column] == null) {
+					cellCats[row][column] = [];
+					cellCats[row][column]["value"] = data[row-1][column-1];
+					cellCats[row][column]["cats"] = [];
+				}
+				cellCats[row][column]["cats"][cat] = color;
+				console.log("cellval: " + cellCats[row][column]["cats"][cat]);
+				var newContents = cellCats[row][column]["value"];
+
+				for (var catKey in cellCats[row][column]["cats"]) {
+					newContents += "," + cellCats[row][column]["cats"][catKey];
+				}
+				
+				updateCategoryList();
+				grid.updateCellContents(row,column, newContents);
+				
+				// update legend cell reference
+				if (legendCellRef[cat] == null) {
+					legendCellRef[cat] = [];
+				}
+				
+				if (legendCellRef[cat][label] == null) {
+					legendCellRef[cat][label] = [];
+					console.log("pushing: "+ row + "-" + column);
+					legendCellRef[cat][label].push(row + "-" + column);
+				} else {
+					if (legendCellRef[cat][label].indexOf(row + "-" + column) == -1) {
+						console.log("pushing: "+ row + "-" + column);
+						legendCellRef[cat][label].push(row + "-" + column);
+					} else {
+						console.log("already there");
+					}
+				}
+            }
+			
+
+            /**
+             * addEvent - This function adds an event handler to an html element in
+             * a way that covers many browser types.
+             * @param elementId - the string id of the element to attach the handler to
+             * or a reference to the element itself.
+             * @param eventType - a string representation of the event to be handled
+             * without the "on" prefix
+             * @param handlerFunction - the function to handle the event
+             */
+            function addEvent(elementId, eventType, handlerFunction) {
+                'use strict';
+
+                var element;
+
+                if (typeof(elementId) === "string"){
+                    element = document.getElementById(elementId);
+                } else {
+                    element = elementId;
+                }
+
+                if (element.addEventListener) {
+                    element.addEventListener(eventType, handlerFunction, false);
+                } else if (window.attachEvent) {
+                    element.attachEvent("on" + eventType, handlerFunction);
+                }
+            } // end of function addEvent
+
+
+            /**
+             * This function handles the window load event. It initializes and fills the
+             * grid with blank data and sets up the event handlers on the
+             */
+            function init(){
+                createGrid();
+                loadRandomData();
+                addEvent("colorChoice", "change", handleColorChange);
+                addEvent("removeHighlighting", "click", removeAllHighlightedCells);
+				addEvent("addNewLabel", "click", addNewLabel);
+				
+            }
+
+            window.onload = init;
+			
+			// jQuery ui stuff
+			$("#addLabelPanel").hide();
+			
+			$(function() {
+				$( "#tabs-1" ).tabs();
+			});
+			
+			$(function() {
+			function runEffect() {
+				  $("#addLabelPanel").toggle("drop", {direction: "right"}, 500 );
+				};
+				
+				$("#addLabelButton").click(function() {
+					runEffect();
+				});
+			});
+        </script>
+    </body>
+</html>
