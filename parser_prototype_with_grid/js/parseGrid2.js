@@ -1,0 +1,363 @@
+/**
+ * created by Jaime Valencia
+ * Modified by zacharymartin on 3/17/15.
+ */
+
+// Check for the various File API support.
+if (window.File && window.FileReader && window.FileList && window.Blob) {
+    // Great success! All the File APIs are supported.
+} else {
+    alert('The File APIs are not fully supported in this browser.');
+}
+
+var distinctColors = [
+    '#00FF00',
+    '#0000FF',
+    '#FF0000',
+    '#01FFFE',
+    '#FFA6FE',
+    '#FFDB66',
+    '#006401',
+    '#010067',
+    '#95003A',
+    '#007DB5',
+    '#FF00F6',
+    '#FFEEE8',
+    '#774D00',
+    '#90FB92',
+    '#0076FF',
+    '#D5FF00',
+    '#FF937E',
+    '#6A826C',
+    '#FF029D',
+    '#FE8900',
+    '#7A4782',
+    '#7E2DD2',
+    '#85A900',
+    '#FF0056',
+    '#A42400',
+    '#00AE7E',
+    '#683D3B',
+    '#BDC6FF',
+    '#263400',
+    '#BDD393',
+    '#00B917',
+    '#9E008E',
+    '#001544',
+    '#C28C9F',
+    '#FF74A3',
+    '#01D0FF',
+    '#004754',
+    '#E56FFE',
+    '#788231',
+    '#0E4CA1',
+    '#91D0CB',
+    '#BE9970',
+    '#968AE8',
+    '#BB8800',
+    '#43002C',
+    '#DEFF74',
+    '#00FFC6',
+    '#FFE502',
+    '#620E00',
+    '#008F9C',
+    '#98FF52',
+    '#7544B1',
+    '#B500FF',
+    '#00FF78',
+    '#FF6E41',
+    '#005F39',
+    '#6B6882',
+    '#5FAD4E',
+    '#A75740',
+    '#A5FFD2',
+    '#FFB167',
+    '#009BFF',
+    '#E85EBE'];
+
+function BioFeature(feaLabel){
+    this.parentFeature=null;
+    this.featureLabel=feaLabel;
+    this.description='';
+    this.topLeftCoords=-1;
+    this.bottomRightCoords=-1;
+    this.topLeftValue='';
+    this.bottomRightValue='';
+    this.relativeToLeftX=-1;
+    this.relativeToLeftY=-1;
+    this.color='';
+    this.typeOfChild=null;  // Data, Range, Unique
+    this.bioFeatures=[];
+
+}
+
+var currentTopLeftCoord = null;
+var currentBottomRightCoord = null;
+
+var grid = new Grid("myGrid");
+
+var colorPointer = 0;
+var biofeatures = [];
+var matrix = [];
+var lines = [];
+var colsSize =-1;
+var rowsSize =-1;
+var numberOfFeatures =-1;
+var numberOfFeaturesCHILD =-1;
+var colorKeyCounter = 0;
+
+
+function applyFeatures(){
+
+    for(var i = 0; i < biofeatures.length; i++){
+
+        var currentFeature = biofeatures[i];
+
+        var breakLabel = currentFeature.topLeftValue.trim();
+
+        var startPoint = currentFeature.topLeftCoords;
+        var endPoint = currentFeature.bottomRightCoords;
+        var relativeCol = currentFeature.relativeToLeftX;
+
+        var numOfRows = endPoint[0] - startPoint[0];
+        var numOfCols = endPoint[1] - startPoint[1];
+        var colorFeature = distinctColors[currentFeature.color];
+
+        for(var j = startPoint[0]; j<rowsSize; j++){
+            var newLabel = grid.getDataPoint(j,startPoint[1]).trim();
+
+            if(breakLabel == newLabel){
+                var coordsToHighlight = [];
+
+                for(var rowIdx = 0; rowIdx<=numOfRows; rowIdx++) {
+                    for(var colIdx = 0; colIdx<=numOfCols; colIdx++) {
+                        coordsToHighlight.push([rowIdx-1+j,colIdx + relativeCol]);
+                    }
+                }
+                grid.setCellColors(coordsToHighlight, colorFeature, "key" + colorKeyCounter);
+                colorKeyCounter++;
+
+
+                for(var idxChild = 0; idxChild < currentFeature.bioFeatures.length; idxChild++) {
+                    var currentChild = currentFeature.bioFeatures[idxChild];
+
+                    var startPointChild = currentChild.topLeftCoords;
+                    var endPointChild = currentChild.bottomRightCoords;
+                    var relativeChildCol = currentChild.relativeToLeftX;
+                    var relativeChildRow= currentChild.relativeToLeftY;
+
+                    var numOfRowsChild = endPointChild[0] - startPointChild[0];
+                    var numOfColsChild = endPointChild[1] - startPointChild[1];
+                    var colorFeatureChild = distinctColors[currentChild.color];
+
+                    coordsToHighlight = [];
+                    for(var rowIdxChild = 0; rowIdxChild<=numOfRowsChild; rowIdxChild++) {
+                        for(var colIdxChild = 0; colIdxChild<=numOfColsChild; colIdxChild++) {
+
+                            coordsToHighlight.push([
+                                rowIdxChild+relativeChildRow+j-1,
+                                colIdxChild+relativeChildCol+relativeCol
+                            ]);
+                        }
+                    }
+
+                    grid.setCellColors(coordsToHighlight, colorFeatureChild, "key" + colorKeyCounter);
+                    colorKeyCounter++;
+                }
+
+                j=j+rowIdx-1;
+            }
+            //console.log("ROwS " + j);
+        }
+
+    }
+}
+
+$( "#btn-apply-features" ).click(function() {
+    applyFeatures();
+});
+
+function addFeature(isParent){
+    var newFeature = new BioFeature($('#featureLabel').text());
+    newFeature.topLeftCoords=currentTopLeftCoord;
+    newFeature.topLeftValue=grid.getDataPoint(currentTopLeftCoord[0], currentTopLeftCoord[1]);
+    newFeature.bottomRightCoords=currentBottomRightCoord;
+    newFeature.bottomRightValue=grid.getDataPoint(currentBottomRightCoord[0], currentBottomRightCoord[1]);
+    newFeature.relativeToLeftX = currentTopLeftCoord[0];
+    newFeature.relativeToLeftY = currentTopLeftCoord[1];
+    if (isParent) {
+        newFeature.typeOfParent = $('input[name=parent-radio]:checked').val();
+    } else {
+        newFeature.typeOfChild = $('input[name=child-radio]:checked').val();
+
+        // When it is one value set both top and bottom properties to
+        // the same value.
+        if(newFeature.typeOfChild=='unique'){
+            newFeature.bottomRightCoords=newFeature.topLeftCoords;
+            newFeature.bottomRightValue=newFeature.topLeftValue;
+        }
+        newFeature.parentFeature = biofeatures[$("#select-to option:selected").val()];
+        newFeature.parentFeature.bioFeatures.push(newFeature);
+        newFeature.relativeToLeftX = newFeature.topLeftCoords[1] - newFeature.parentFeature.topLeftCoords[1];
+        newFeature.relativeToLeftY = newFeature.topLeftCoords[0] - newFeature.parentFeature.topLeftCoords[0];
+        newFeature.importData = true;
+    }
+    newFeature.color=colorPointer;
+    return newFeature;
+}
+
+
+/**
+ * replaces anonymous function starting on line 114 of original csvParser.html
+ * @param startRow
+ * @param startCol
+ * @param endRow
+ * @param endCol
+ */
+function handleSelectedCells(startRow, startCol, endRow, endCol){
+    // write to the selected cells div, the cells that are selected
+    var out = document.getElementById("selectedCells");
+    out.innerHTML = Grid.getRowLabel(startRow+1)+startCol+":"
+    +Grid.getRowLabel(endRow+1)+endCol;
+
+
+    // highlight those cells with the current color
+    var coordinatesToHighlight = [];
+    for (var i=startRow; i<=endRow; i++){
+        for (var j=startCol; j<=endCol; j++){
+            coordinatesToHighlight.push([i,j]);
+        }
+    }
+    grid.setCellColors(coordinatesToHighlight,distinctColors[colorPointer], "key" + colorKeyCounter);
+    colorKeyCounter++;
+
+    // set the current selected cells variables
+    currentTopLeftCoord = [startRow+1,startCol];
+    currentBottomRightCoord = [endRow+1,endCol];
+}
+
+
+$('#btn-add-child').click(function(){
+    $('#select-to-child').append("<option value='"+(numberOfFeaturesCHILD+1)+"'>"+$('#featureLabel').val()+"</option>");
+    addFeature(false);
+    colorPointer++;
+    console.log(biofeatures);
+    $('#featureLabel').val('');
+});
+
+$('#btn-add').click(function(){
+    $('#select-to').append("<option value='"+(numberOfFeatures+1)+"'>"+$('#featureLabel').val()+"</option>");
+    biofeatures.push(addFeature(true));
+    colorPointer++;
+    console.log(biofeatures);
+    $('#featureLabel').val('');
+});
+
+$('#btn-remove').click(function(){
+    $('#select-to option:selected').each( function() {
+        $(this).remove();
+        numberOfFeatures--;
+    });
+});
+
+
+function file2grid(text, lineTerminator, cellTerminator) {
+
+    matrix = [];
+    var lines;
+
+    //break the lines apart
+    lines = text.split(lineTerminator);
+    rowsSize = lines.length;
+
+    for(var j = 0; j<rowsSize; j++){
+
+        var information = lines[j].split(cellTerminator);
+
+        if (information.length > colsSize){
+            colsSize = information.length;
+        }
+
+        matrix[j] = [];
+        for(var k = 0; k < information.length; k++){
+            matrix[j][k] = information[k];
+        }
+    }
+
+
+}
+
+
+function handleFileSelect(files) {
+
+    if (files.target && files.target.files){
+         files = files.target.files; // FileList object
+    }
+
+    // reset parser
+    currentTopLeftCoord = null;
+    currentBottomRightCoord = null;
+
+    table = document.getElementById('outputTable');
+
+    colorPointer = 0;
+    biofeatures = [];
+    matrix = [];
+    lines = [];
+    colsSize =-1;
+    rowsSize =-1;
+    numberOfFeatures =-1;
+    numberOfFeaturesCHILD =-1;
+
+
+    // Loop through the FileList and populate the 'outputTable' with the data
+    for (var i = 0, f; f = files[i]; i++) {
+        var reader = new FileReader();
+
+        // Closure to capture the file information.
+        reader.onload = function(e) {
+
+            //call the parse function with the proper line terminator and cell terminator
+            //parseCSV(e.target.result, '\n', '\t');
+            file2grid(e.target.result, '\n', '\t');
+            grid.setData(matrix);
+            grid.fillUpGrid();
+            grid.registerSelectedCellCallBack(handleSelectedCells);
+        };
+
+        // Read the file as text
+        reader.readAsText(f);
+
+    }
+}
+
+document.getElementById('files').addEventListener('change', handleFileSelect, false);
+
+// Attach listener for when a file is first dragged onto the screen
+document.addEventListener('dragenter', function(e) {
+    e.stopPropagation();
+    e.preventDefault();
+
+    // Show an overlay so it is clear what the user needs to do
+    document.body.classList.add('show-overlay');
+}, false);
+
+// Attach a listener for while the file is over the browser window
+document.addEventListener('dragover', function(e) {
+    e.stopPropagation();
+    e.preventDefault();
+}, false);
+
+// Attach a listener for when the file is actually dropped
+document.addEventListener('drop', function(e) {
+    e.stopPropagation();
+    e.preventDefault();
+
+    // Hides the overlay
+    document.body.classList.remove('show-overlay');
+
+    // Process the files
+    handleFileSelect(e.dataTransfer.files);
+
+}, false);
+
