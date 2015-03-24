@@ -12,8 +12,7 @@
         <!-- demonstration.css is specific to this page, it does not affect grid, just
         general page styling, so feel free to get rid of it for other pages-->
         <link rel="stylesheet" href="css/demonstration.css" type="text/css"/>
-
-
+		
         <!-- scripts -->
 
         <!-- library scripts, for using Slickgrid -->
@@ -32,16 +31,13 @@
         <!-- The SlickGrid wrapper script -->
         <script type="text/javascript" src="js/Grid.js"></script>
     </head>
-    <body>
+    <body>	
 		<h2>Create Plate: (step 3 of 3)</h2>
 		<div id="gridPanel" style="float:left; width: 70%">
 			<div id="myGrid" style="width:100%;height:650px;"></div>
 		</div>
 		<div id="labelPanel" style="float:right;width:29%;">
-			<p>Highlight an area of cells with your mouse.</p>
 			<div>Cell Range Selected:<span id="cellRange"></span></div>
-			<div>selected cells highlight color<input id="colorChoice" type="color" value="#D5E3E3"/></div>
-			<div><button id="removeHighlighting">Remove All Highlighting</button></div>
 			<hr/>
 			<div id="tabs-1">
 				<ul>
@@ -54,20 +50,21 @@
 					<button id="addLabelButton" class="ui-state-default ui-corner-all">Add New Label</button>
 					<button id="addDoseStepButton" class="ui-state-default ui-corner-all">Add Dose Step</button>
 					<button id="importCmpListButton" class="ui-state-default ui-corner-all">Import Compound List??</button>
+					
 					<div class="toggler">
-					  <div id="addLabelPanel" class="ui-widget-content ui-corner-all">
-						<div>
+						<div id="addLabelPanel" class="ui-widget-content ui-corner-all">
 							<h4>New Label Details:</h4>
 							<div>Category:<input type="text" id="newCatValue"/></div>
 							<div>Label:<input type="text" id="newLabelValue"/></div>
 							<div>Color:<input type="color" id="newColorValue" value="#FFFF00"/></div>
-							<h4>Apply To Well:</h4>
-							<div>Row:<input type="text" id="rowToChange"/></div>
-							<div>Column:<input type="text" id="colToChange"/></div>
-							<div><button id="addNewLabel">Add New Label To Selected Cells</button></div>
+							<hr/>
+							<strong><-- Select Wells To Apply Labels To:</strong>
+							<div> <button id="clearLastSelection">Undo Last Selection</button><button id="clearAllSelection">Clear Selection</button></div>
+							<hr/>
+							<div><button id="addNewLabel">Apply New Label</button><button id="cancelNewLabel">Cancel</button></div>
 						</div>
-					  </div>
 					</div>
+					
 					<div id="categoryList"/>
 				</div>
 				<div id="tabs-3">
@@ -150,6 +147,19 @@
                 currentHighlightKeys.push(key);
                 highlightKeyCounter++;
             }
+			
+			/**
+             * This function handles the event that the removeHighlighting button is
+             * clicked by removing the most recent cell background color change. This
+             * is achieved by calling the removeCellColors method of the Grid class with
+             * the most key used to create the most recent background color change as
+             * stored in the currentHighlightKeys array.
+             */
+            function removeHighlightedArea(){
+				if (currentHighlightKeys.length > 0) {
+					grid.removeCellColors(currentHighlightKeys.pop());
+				}
+            }
 
             /**
              * This function handles the event that the removeHighlighting button is
@@ -161,10 +171,7 @@
             function removeAllHighlightedCells(){
 				while (currentHighlightKeys.length > 0) {
 					grid.removeCellColors(currentHighlightKeys.pop());
-					
 				}
-				// hack
-				grid.selectedCells = [];
             }
 
             /**
@@ -201,50 +208,11 @@
                 grid.setData(data);
                 grid.fillUpGrid();
             }
-
-            /**
-             * This function is a handler for the event that the "colorChoice" input
-             * changes value as a result of user interaction. It responds by updating
-             * the currentHighlightColor variable to the new value of the input.
-             */
-            function handleColorChange(){
-                var colorChoice = document.getElementById("colorChoice").value;
-                currentHighlightColor = colorChoice;
-            }
-
-            /**
-             * This function changes the value of a user determined cell in the grid
-             * to a user determined value. It is a handler for the event that the
-             * "changeValue" button is clicked.
-             */
-            function changeCellContents(){
-                var row = document.getElementById("rowToChange").value;
-                row = Grid.getRowNumber(row);
-                var column = document.getElementById("colToChange").value;
-                column = parseInt(column);
-                var newContents = document.getElementById("newValue").value;
-
-                grid.updateCellContents(row,column, newContents);
-            }
-
-            function getCellContents(){
-                var row = document.getElementById("rowToChange").value;
-                row = Grid.getRowNumber(row);
-                var column = document.getElementById("colToChange").value;
-                column = parseInt(column);
-
-                var value = grid.getDataPoint(row, column);
-                document.getElementById("cellValue").innerHTML = value;
-            }
 			
 			function onCatColorChange(){
-				console.log("change:"+ this.id);
 				var idArr = this.id.split("-");
 				var cat = idArr[1];
 				var label = idArr[2];
-				console.log("cat:"+cat);
-				console.log("cat:"+label);
-                console.log(legendCellRef[cat][label]);
 				// update all cells with cat and label (messy?)
 				for (var cellRef in legendCellRef[cat][label]) {
 					// what are you doing here ??, define some sort of structure !!!
@@ -291,20 +259,31 @@
 				$("#color-"+catKey + "-"+labelKey).change(onCatColorChange);
 			}
 			
+			function enableGridSelection() {
+				removeAllHighlightedCells();
+				grid.enableCellSelection();
+			}
+			
+			function disableGridSelection() {
+				removeAllHighlightedCells();
+				grid.disableCellSelection();
+			}
+			
+			function cancelNewLabel() {
+				hideLabelPanel();
+			}		
 			
 			/**
              * This function changes the style of a particular cell
              */
-            function addNewLabel(){
-				var row = document.getElementById("rowToChange").value;
-                row = Grid.getRowNumber(row);
-                var column = document.getElementById("colToChange").value;
-                column = parseInt(column);
+            function addNewLabel() {
+				var selCells = grid.getSelectedCells();
+				console.log(selCells);
 				var cat = document.getElementById("newCatValue").value;
 				var label = document.getElementById("newLabelValue").value;
 				var color = document.getElementById("newColorValue").value;
-				//var newContents = cat + label +","+ color;
-
+				
+				
 				if (categories[cat] == null) {
 					categories[cat] = [];
 					categories[cat][label] = color;
@@ -313,43 +292,47 @@
 					categories[cat][label] = color;
 				}
 				
-				// messy hack
-				if (cellCats[row] == null) {
-					cellCats[row] = [];
-				}
-				if (cellCats[row][column] == null) {
-					cellCats[row][column] = [];
-					cellCats[row][column]["value"] = data[row-1][column-1];
-					cellCats[row][column]["cats"] = [];
-				}
-				cellCats[row][column]["cats"][cat] = color;
-				console.log("cellval: " + cellCats[row][column]["cats"][cat]);
-				var newContents = cellCats[row][column]["value"];
+				for (var cell in selCells) {
+					var row = selCells[cell][0];		// change iteration method !!!
+					var column = selCells[cell][1];
+					
+					// messy hack
+					if (cellCats[row] == null) {
+						cellCats[row] = [];
+					}
+					if (cellCats[row][column] == null) {
+						cellCats[row][column] = [];
+						cellCats[row][column]["value"] = data[row-1][column-1];
+						cellCats[row][column]["cats"] = [];
+					}
+					cellCats[row][column]["cats"][cat] = color;
+					var newContents = cellCats[row][column]["value"];
 
-				for (var catKey in cellCats[row][column]["cats"]) {
-					newContents += "," + cellCats[row][column]["cats"][catKey];
-				}
-				
-				updateCategoryList();
-				grid.updateCellContents(row,column, newContents);
-				
-				// update legend cell reference
-				if (legendCellRef[cat] == null) {
-					legendCellRef[cat] = [];
-				}
-				
-				if (legendCellRef[cat][label] == null) {
-					legendCellRef[cat][label] = [];
-					console.log("pushing: "+ row + "-" + column);
-					legendCellRef[cat][label].push(row + "-" + column);
-				} else {
-					if (legendCellRef[cat][label].indexOf(row + "-" + column) == -1) {
-						console.log("pushing: "+ row + "-" + column);
+					for (var catKey in cellCats[row][column]["cats"]) {
+						newContents += "," + cellCats[row][column]["cats"][catKey];
+					}
+					
+					updateCategoryList();
+					grid.updateCellContents(row,column, newContents);
+					
+					// update legend cell reference
+					if (legendCellRef[cat] == null) {
+						legendCellRef[cat] = [];
+					}
+					
+					if (legendCellRef[cat][label] == null) {
+						legendCellRef[cat][label] = [];
 						legendCellRef[cat][label].push(row + "-" + column);
 					} else {
-						console.log("already there");
+						if (legendCellRef[cat][label].indexOf(row + "-" + column) == -1) {
+							legendCellRef[cat][label].push(row + "-" + column);
+						} else {
+							console.log("already there");
+						}
 					}
 				}
+				// disable selection of grid cells
+				hideLabelPanel();
             }
 			
 
@@ -388,30 +371,37 @@
             function init(){
                 createGrid();
                 loadRandomData();
-                addEvent("colorChoice", "change", handleColorChange);
-                addEvent("removeHighlighting", "click", removeAllHighlightedCells);
 				addEvent("addNewLabel", "click", addNewLabel);
+				addEvent("cancelNewLabel", "click", cancelNewLabel);
+				addEvent("clearLastSelection", "click", removeHighlightedArea);
+				addEvent("clearAllSelection", "click", removeAllHighlightedCells);
 				
+				// initially disable selection of grid cells
+				disableGridSelection();
             }
 
             window.onload = init;
 			
 			// jQuery ui stuff
-			$("#addLabelPanel").hide();
-			
 			$(function() {
 				$( "#tabs-1" ).tabs();
-			});
-			
-			$(function() {
-			function runEffect() {
-				  $("#addLabelPanel").toggle("drop", {direction: "right"}, 500 );
-				};
 				
+				$("#addLabelPanel").hide();
+					
 				$("#addLabelButton").click(function() {
-					runEffect();
+					showLabelPanel();
 				});
 			});
+			
+			function showLabelPanel() {
+				enableGridSelection();
+				$("#addLabelPanel").show("drop", {direction: "right"}, 500 );
+			};
+			
+			function hideLabelPanel() {
+				disableGridSelection();
+				$("#addLabelPanel").hide("drop", {direction: "right"}, 500 );
+			};
         </script>
     </body>
 </html>

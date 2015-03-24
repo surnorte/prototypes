@@ -21,9 +21,19 @@ function Grid(containerID){
     this.rowsSize =-1;
     this.grid = null;
     this.selectedCellsCallBacks = [];
-	this.selectedCells = [];
     this.colorCounter = 0;
     this.container = containerID;
+    this.highlightedCellsByColor = {};
+    this.highlightedCellsByKey = {};
+    this.keyToColor = {};
+	
+    // current selected cells fields
+    this.selectedStartRow = null;
+    this.selectedEndRow = null;
+    this.selectedStartCol = null;
+    this.selectedEndCol = null;
+	this.selectionEnabled = true;
+
 
     /**
      * A setter for the dataset to display in the grid. The underlying SlickGrid object
@@ -175,6 +185,7 @@ function Grid(containerID){
      */
     this.setCellColors = function (coordinates, color, key){
         var style = document.createElement('style');
+		color = color.toUpperCase();
 
         style.type = 'text/css';
         style.innerHTML = '.highlight'+this.colorCounter+' { background-color: ' + color +'; }';
@@ -196,11 +207,25 @@ function Grid(containerID){
         this.grid.addCellCssStyles(key, changes);
         this.grid.render();
 
+        if (!this.highlightedCellsByColor[color]){
+            this.highlightedCellsByColor[color] = [];
+        }
+        this.highlightedCellsByKey[key] = [];
+        this.keyToColor[key] = color;
+
+        var currentSelectedCells = this.getSelectedCells();
+
+        for (var j=0; j<currentSelectedCells.length; j++){
+
+            if (-1 === Grid.coordinateArrayIndexOf(this.highlightedCellsByColor[color],
+                    currentSelectedCells[j]) ){
+                this.highlightedCellsByColor[color].push(currentSelectedCells[j]);
+            }
+
+            this.highlightedCellsByKey[key].push(currentSelectedCells[j]);
+        }
+
         this.colorCounter++;
-		
-		// hack
-		console.log(coordinates);
-		this.selectedCells.push(coordinates);
     };
 
     /**
@@ -212,7 +237,106 @@ function Grid(containerID){
      */
     this.removeCellColors = function(key){
         this.grid.removeCellCssStyles(key);
+		
+		cellsToRemoveColor = this.highlightedCellsByKey[key];
+        colorToRemove = this.keyToColor[key];
+
+        for(var i=0; i<cellsToRemoveColor.length; i++){
+            var index = Grid.coordinateArrayIndexOf(
+                this.highlightedCellsByColor[colorToRemove],
+                cellsToRemoveColor[i]);
+            this.highlightedCellsByColor[colorToRemove].splice(index,1);
+        }
+
+        this.highlightedCellsByKey[key] = null;
+        this.keyToColor[key] = null;
     };
+
+	/**
+     * This function returns the currently selected cell bounds in the form of an array
+     * where the:
+     *      0th position - holds the start cell row number
+     *      1st position - holds the start cell column number
+     *      2nd position - holds the end cell row number
+     *      3rd position - holds the end cell column number
+     * @returns {*[]} - the bounds of the currently selected cells in the grid
+     */
+    this.getSelectedCellBounds = function(){
+        return [this.selectedStartRow,
+                this.selectedStartCol,
+                this.selectedEndRow,
+                this.selectedEndCol
+               ];
+    };
+    
+     /**
+     * This function returns an array of all of the cell coordinates that are currently
+     * selected, where the coordinates are arrays of the form [rowNumber, columnNumber].
+     * @returns {Array|*} - an array of arrays where the inner arrays are the coordinates
+     * of selected cells.
+     */
+    this.getSelectedCells = function(){
+        result = [];
+
+        for(var i=this.selectedStartRow; i<=this.selectedEndRow; i++){
+            for(var j=this.selectedStartCol; j<=this.selectedEndCol; j++){
+                result.push([i,j]);
+            }
+        }
+
+        return result;
+    };
+	
+	/**
+     * disables updates to cells on selection event
+     */
+    this.disableCellSelection = function(){
+        selectionEnabled = false;
+    };
+	
+	/**
+     * enables updates to cells on selection event
+     */
+    this.enableCellSelection = function(){
+        selectionEnabled = true;
+    };
+	
+	/**
+     * This function returns an array of all of the cell coordinates that are currently
+     * highlighted by color, where the coordinates are arrays of the form
+     *              [rowNumber, columnNumber]
+     * If this method is called with no argument color, then all highlighted cell
+     * coordinates regardless of color are returned.
+     * @param color - the color of the highlighted cells whose coordinates are to be found
+     * @returns {*} - an array of the coordinates of all highlighted cells of the
+     *          specified color, unless no color is specified and then all of the
+     *          highlighted cell coordinates are returned regardless of color
+     */
+    this.getHighlightedCells = function(color){
+        color = color.toUpperCase();
+
+        if (color) {
+            if (this.highlightedCellsByColor[color]){
+                return this.highlightedCellsByColor[color];
+            } else {
+                return [];
+            }
+        } else {
+            var result = [];
+
+            for (var key in this.highlightedCellsByColor){
+                if (this.highlightedCellsByColor[key]
+                    && this.highlightedCellsByColor[key].length){
+                    for (var i=0; i<this.highlightedCellsByColor[key].length; i++){
+                        result.push(this.highlightedCellsByColor[key][i]);
+                    }
+                }
+            }
+
+            return result;
+        }
+    };
+	
 
     /**
      * This function registers a function to be called in an observer type pattern,
@@ -279,16 +403,22 @@ function Grid(containerID){
      * @param data - the object containing the selected cell range data
      */
     function updateSelectedCells(event, data){
-
-        _self.selectedCellsCallBacks.forEach(function(element){
-           if (data[0].toCell != 0 && data[0].fromCell != 0){
-               element(data[0].fromRow,
-                   data[0].fromCell,
-                   data[0].toRow,
-                   data[0].toCell
-               );
-           }
-        });
+		if (selectionEnabled == true) {
+			_self.selectedStartRow = data[0].fromRow + 1;
+			_self.selectedStartCol = data[0].fromCell;
+			_self.selectedEndRow = data[0].toRow + 1;
+			_self.selectedEndCol = data[0].toCell;
+			
+			_self.selectedCellsCallBacks.forEach(function(element){
+			   if (data[0].toCell != 0 && data[0].fromCell != 0){
+				   element(data[0].fromRow,
+					   data[0].fromCell,
+					   data[0].toRow,
+					   data[0].toCell
+				   )
+			   }
+			});
+		}
     }
 }
 
@@ -341,4 +471,17 @@ Grid.getRowNumber = function(label) {
     }
 
     return number;
+};
+
+
+Grid.coordinateArrayIndexOf = function(coordinateArray, coordinatesToSearchFor){
+
+    for(var i=0; i<coordinateArray.length; i++){
+        if (coordinateArray[i][0] === coordinatesToSearchFor[0]
+            && coordinateArray[i][1] === coordinatesToSearchFor[1]){
+            return i;
+        }
+    }
+
+    return -1;
 };
