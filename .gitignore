@@ -28,3 +28,7 @@
 
 # "temporary" build files
 /target
+
+# intellij idea files
+/parser_prototype_with_grid/.idea
+/parser_prototype_with_grid/*.iml

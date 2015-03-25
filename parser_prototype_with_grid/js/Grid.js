@@ -417,13 +417,31 @@ Grid.getRowNumber = function(label) {
 
     var number = 0;
     label = label.toUpperCase();
-
     for(var i=0; i < label.length; i++) {
         number *= ROW_HEAD_BASE;
         number += label.charCodeAt(i) - STARTING_CHAR_CODE + 1 ;
     }
 
     return number;
+};
+
+Grid.getCellCoordinates = function(label){
+    label.trim();
+    var indexOfFirstNumericChar = -1;
+
+    // first find the index of the first numeric value
+    for (var i=0; i<label.length; i++){
+        if (isFinite(label.charAt(i))){
+            indexOfFirstNumericChar = i;
+            break;
+        }
+    }
+
+    var row = label.substring(0, indexOfFirstNumericChar);
+     row = Grid.getRowNumber(row);
+    var col = parseInt(label.substring(indexOfFirstNumericChar));
+
+    return [row, col];
 };
 
 
