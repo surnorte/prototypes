@@ -89,6 +89,7 @@
             var currentHighlightKeys = [];
             var highlightKeyCounter = 0;
             var currentHighlightColor = "#D5E3E3";
+			var highlightedCoords = [];
 
             /**
              * A function that creates a blank data set for initializing the grid example
@@ -140,6 +141,8 @@
                 for (var i=startRow; i<=endRow; i++){
                     for (var j=startCol; j<=endCol; j++){
                         coordinatesToHighlight.push([i, j]);
+						// set global record of highlights
+						highlightedCoords.push([i+1, j]);
                     }
                 }
                 var key = "key" + highlightKeyCounter;
@@ -158,6 +161,10 @@
             function removeHighlightedArea(){
 				if (currentHighlightKeys.length > 0) {
 					grid.removeCellColors(currentHighlightKeys.pop());
+					
+					// need to decrement highlightedCoords here !! 
+					//(not the same number of items removed !!!)
+					highlightedCoords.pop();	// need to fix !!
 				}
             }
 
@@ -172,6 +179,8 @@
 				while (currentHighlightKeys.length > 0) {
 					grid.removeCellColors(currentHighlightKeys.pop());
 				}
+				// removing all selected cells, so global count disappears
+				highlightedCoords = [];
             }
 
             /**
@@ -213,22 +222,39 @@
 				var idArr = this.id.split("-");
 				var cat = idArr[1];
 				var label = idArr[2];
-				// update all cells with cat and label (messy?)
-				for (var cellRef in legendCellRef[cat][label]) {
-					// what are you doing here ??, define some sort of structure !!!
-					var cellRefArr = legendCellRef[cat][label][cellRef].split("-");
-					var row = cellRefArr[0];
-					var column = cellRefArr[1];
-					cellCats[row][column]["cats"][cat] = this.value;
-					
-					// update actual grid cell
-					var newContents = cellCats[row][column]["value"];
-					for (var catKey in cellCats[row][column]["cats"]) {
-						newContents += "," + cellCats[row][column]["cats"][catKey];
-					}
-					grid.updateCellContents(row, column, newContents);
-				}				
+				updateCellColors(cat, label, this.value);	
             }
+			
+			function updateCellColors(cat, label, color) {
+				// update all cells with cat and label (messy?)
+				if (legendCellRef[cat] != undefined) {
+					for (var cellRef in legendCellRef[cat][label]) {			//change iteration method !!!
+						// what are you doing here ??, define some sort of structure !!!
+						var cellRefArr = legendCellRef[cat][label][cellRef].split("-");
+						var row = cellRefArr[0];
+						var column = cellRefArr[1];
+						cellCats[row][column]["cats"][cat] = color;
+						
+						// update actual grid cell
+						var newContents = cellCats[row][column]["value"];
+						for (var catKey in cellCats[row][column]["cats"]) {
+							newContents += "," + cellCats[row][column]["cats"][catKey];
+						}
+						grid.updateCellContents(row, column, newContents);
+					}
+				}
+			}
+			
+			function createColorPicker(cat, label) {
+				var newInput = document.createElement("input");
+				newInput.id = "color-" + cat + "-" + label;
+				newInput.type = "color";
+				newInput.defaultValue = categories[cat][label];
+				newInput.value = categories[cat][label];
+				//$("#color-" + cat + "-" + label).change(onCatColorChange);
+				newInput.onchange = onCatColorChange;
+				return newInput;
+			}
 			
 			function updateCategoryList() {
 				var newDiv = document.createElement("div");
@@ -244,19 +270,23 @@
 					for (var labelKey in categories[catKey]) {
 						var newLi = document.createElement("li");
 						newLi.appendChild(document.createTextNode(labelKey));
-						var newInput = document.createElement("input");
-						newInput.id = "color-"+catKey + "-"+labelKey;
-						newInput.type = "color";
-						newInput.defaultValue = categories[catKey][labelKey];
-						newInput.value = categories[catKey][labelKey];
+						var newInput = createColorPicker(catKey, labelKey);
 						newLi.appendChild(newInput);
 						newUl.appendChild(newLi);
+						// add change event to category color (do we need to destroy the existing events??, probably!!)
+						// or is this cleaned up when the object is destroyed? (is the object destroyed? - debug!)
+						//$("#color-"+catKey + "-"+labelKey).change(onCatColorChange);
 					}
 					newDiv.appendChild(newUl);
 				}
 				document.getElementById("categoryList").innerHTML = newDiv.innerHTML;
-				// add change event to category color
-				$("#color-"+catKey + "-"+labelKey).change(onCatColorChange);
+				
+				// apply events with a redundant nested loop. only seems to work when part of dom. fix!!(remove loop)
+				for (var catKey in categories) {
+					for (var labelKey in categories[catKey]) {
+						$("#color-"+catKey + "-"+labelKey).change(onCatColorChange);
+					}
+				}
 			}
 			
 			function enableGridSelection() {
@@ -277,34 +307,39 @@
              * This function changes the style of a particular cell
              */
             function addNewLabel() {
-				var selCells = grid.getSelectedCells();
+				//var selCells = grid.getSelectedCells();
+				var selCells = highlightedCoords;
 				console.log(selCells);
 				var cat = document.getElementById("newCatValue").value;
 				var label = document.getElementById("newLabelValue").value;
 				var color = document.getElementById("newColorValue").value;
 				
-				
+				// update categories to color
 				if (categories[cat] == null) {
 					categories[cat] = [];
 					categories[cat][label] = color;
 				} else {
-					console.log("found:" + categories[cat][label]);
 					categories[cat][label] = color;
+					// category and label already exist, just changing color,
+					// in this case cells which already have this label need their color updated also!!
+					updateCellColors(cat, label, color);
 				}
 				
+				// update selected grid cells with label
 				for (var cell in selCells) {
 					var row = selCells[cell][0];		// change iteration method !!!
 					var column = selCells[cell][1];
 					
-					// messy hack
+					// messy hack	--> maybe not so bad for efficiency actually ?
 					if (cellCats[row] == null) {
 						cellCats[row] = [];
 					}
 					if (cellCats[row][column] == null) {
 						cellCats[row][column] = [];
-						cellCats[row][column]["value"] = data[row-1][column-1];
 						cellCats[row][column]["cats"] = [];
 					}
+					
+					cellCats[row][column]["value"] = data[row-1][column-1];
 					cellCats[row][column]["cats"][cat] = color;
 					var newContents = cellCats[row][column]["value"];
 
@@ -312,10 +347,9 @@
 						newContents += "," + cellCats[row][column]["cats"][catKey];
 					}
 					
-					updateCategoryList();
 					grid.updateCellContents(row,column, newContents);
 					
-					// update legend cell reference
+					// update color legend cell reverse lookup
 					if (legendCellRef[cat] == null) {
 						legendCellRef[cat] = [];
 					}
@@ -331,9 +365,12 @@
 						}
 					}
 				}
+				
+				updateCategoryList();
 				// disable selection of grid cells
 				hideLabelPanel();
             }
+			
 			
 
             /**
