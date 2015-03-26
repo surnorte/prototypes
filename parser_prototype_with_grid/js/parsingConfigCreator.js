@@ -10,6 +10,10 @@ if (window.File && window.FileReader && window.FileList && window.Blob) {
     alert('The File APIs are not fully supported in this browser.');
 }
 
+$( "#tabs" ).tabs({
+    active: 2
+});
+
 var distinctColors = [
     '#00FF00',
     '#0000FF',
@@ -97,14 +101,26 @@ var currentBottomRightCoord = null;
 var grid = new Grid("myGrid");
 
 var colorPointer = 0;
+var colorPicker = new ColorPicker();
 var biofeatures = [];
 var matrix = [];
-var lines = [];
 var colsSize =-1;
 var rowsSize =-1;
 var numberOfFeatures =-1;
 var numberOfFeaturesCHILD =-1;
 var colorKeyCounter = 0;
+var highlightKeys = [];
+var examiner = new FileExaminer();
+
+examiner.registerAsLoadListener(function(examiner){
+    setDelimiter(examiner.delimiter);
+    grid.setData(examiner.matrix);
+    grid.fillUpGrid();
+    grid.registerSelectedCellCallBack(handleSelectedCells);
+    colsSize = examiner.colsSize;
+    rowsSize = examiner.rowsSize;
+});
+
 
 
 function applyFeatures(){
@@ -121,7 +137,7 @@ function applyFeatures(){
 
         var numOfRows = endPoint[0] - startPoint[0];
         var numOfCols = endPoint[1] - startPoint[1];
-        var colorFeature = distinctColors[currentFeature.color];
+        var colorFeature = colorPicker.getColorByIndex(currentFeature.color);
 
         for(var j = startPoint[0]; j<rowsSize; j++){
             var newLabel = grid.getDataPoint(j,startPoint[1]).trim();
@@ -148,7 +164,8 @@ function applyFeatures(){
 
                     var numOfRowsChild = endPointChild[0] - startPointChild[0];
                     var numOfColsChild = endPointChild[1] - startPointChild[1];
-                    var colorFeatureChild = distinctColors[currentChild.color];
+                    var colorFeatureChild
+                        = colorPicker.getColorByIndex(currentChild.color);
 
                     coordsToHighlight = [];
                     for(var rowIdxChild = 0; rowIdxChild<=numOfRowsChild; rowIdxChild++) {
@@ -215,10 +232,25 @@ function addFeature(isParent){
  * @param endCol
  */
 function handleSelectedCells(startRow, startCol, endRow, endCol){
+    selectCells(startRow, startCol, endRow, endCol);
+
+    var plateRangeInput = document.getElementById("firstPlateCellRange");
+    plateRangeInput.value = Grid.getRowLabel(startRow+1)+startCol+":"
+    +Grid.getRowLabel(endRow+1)+endCol;
+}
+
+function selectCells(startRow, startCol, endRow, endCol){
     // write to the selected cells div, the cells that are selected
     var out = document.getElementById("selectedCells");
     out.innerHTML = Grid.getRowLabel(startRow+1)+startCol+":"
     +Grid.getRowLabel(endRow+1)+endCol;
+
+
+
+    // remove previous highlighting
+    if (highlightKeys.length){
+        grid.removeCellColors(highlightKeys.pop());
+    }
 
 
     // highlight those cells with the current color
@@ -228,7 +260,11 @@ function handleSelectedCells(startRow, startCol, endRow, endCol){
             coordinatesToHighlight.push([i,j]);
         }
     }
-    grid.setCellColors(coordinatesToHighlight,distinctColors[colorPointer], "key" + colorKeyCounter);
+    var key = "key" + colorKeyCounter;
+    grid.setCellColors(coordinatesToHighlight,
+                       colorPicker.getColorByIndex(colorPointer),
+                       "key" + colorKeyCounter);
+    highlightKeys.push(key);
     colorKeyCounter++;
 
     // set the current selected cells variables
@@ -288,17 +324,22 @@ function file2grid(text, lineTerminator, cellTerminator) {
 }
 
 
-function handleFileSelect(files) {
+function handleFileSelect(event) {
+    var files;
+    var fileNameDisplayElement = document.getElementById("selectedFile");
 
-    if (files.target && files.target.files){
-         files = files.target.files; // FileList object
+    if (event.target && event.target.files){
+        // file input case
+        files = event.target.files; // FileList object
+    } else if (event.dataTransfer && event.dataTransfer.files) {
+        // drag and drop case
+        files = event.dataTransfer.files;
     }
 
     // reset parser
     currentTopLeftCoord = null;
     currentBottomRightCoord = null;
 
-    table = document.getElementById('outputTable');
 
     colorPointer = 0;
     biofeatures = [];
@@ -309,29 +350,27 @@ function handleFileSelect(files) {
     numberOfFeatures =-1;
     numberOfFeaturesCHILD =-1;
 
+    fileNameDisplayElement.innerHTML = files[0].name;
+    examiner.setFile(files[0]);
 
-    // Loop through the FileList and populate the 'outputTable' with the data
-    for (var i = 0, f; f = files[i]; i++) {
-        var reader = new FileReader();
+}
 
-        // Closure to capture the file information.
-        reader.onload = function(e) {
-
-            //call the parse function with the proper line terminator and cell terminator
-            //parseCSV(e.target.result, '\n', '\t');
-            file2grid(e.target.result, '\n', '\t');
-            grid.setData(matrix);
-            grid.fillUpGrid();
-            grid.registerSelectedCellCallBack(handleSelectedCells);
-        };
-
-        // Read the file as text
-        reader.readAsText(f);
-
-    }
+function changeDelimiter(){
+    var delimiter = document.getElementById("delimiterList").value;
+    examiner.reExamineWithDelimiter(delimiter);
 }
 
 document.getElementById('files').addEventListener('change', handleFileSelect, false);
+
+function handleGetFile(){
+    $("#files").click();
+}
+
+function setDelimiter(delimiter){
+    var element = document.getElementById("delimiterList");
+    element.value = delimiter;
+
+}
 
 // Attach listener for when a file is first dragged onto the screen
 document.addEventListener('dragenter', function(e) {
@@ -354,10 +393,111 @@ document.addEventListener('drop', function(e) {
     e.preventDefault();
 
     // Hides the overlay
-    document.body.classList.remove('show-overlay');
+    //document.body.classList.remove('show-overlay');
 
     // Process the files
-    handleFileSelect(e.dataTransfer.files);
+    handleFileSelect(e);
 
 }, false);
+
+function firstPlateCellRangeChange(){
+    var plateRangeInput = document.getElementById("firstPlateCellRange");
+    var range = plateRangeInput.value.trim();
+    var rangeSplit = range.split(":");
+    var start = rangeSplit[0].trim();
+    var end = rangeSplit[1].trim();
+    start = Grid.getCellCoordinates(start);
+    end = Grid.getCellCoordinates(end);
+    selectCells(start[0]-1, start[1], end[0]-1, end[1]);
+}
+
+function searchForPlateInvariates(){
+    var valueToLookFor;
+    var timesFound;
+    var possibleInvariateCoords = [];
+    var threshold
+        = Math.floor(rowsSize/((currentBottomRightCoord[0] - currentTopLeftCoord[0])*2));
+
+    for(var row=currentTopLeftCoord[0]; row<=currentBottomRightCoord[0]; row++){
+        for(var col=currentTopLeftCoord[1]; col<=currentBottomRightCoord[1]; col++){
+            valueToLookFor = grid.getDataPoint(row, col).trim();
+            if (valueToLookFor){
+                timesFound = 0;
+                for(var obsRow = currentBottomRightCoord[0]+1; obsRow<=rowsSize; obsRow++){
+                    var currentValue = grid.getDataPoint(obsRow, col);
+                    if (currentValue && currentValue.trim() == valueToLookFor){
+                        timesFound++;
+                        if (timesFound >= threshold) {
+
+                            possibleInvariateCoords.push([row-1,col]);
+                            break;
+                        }
+                    }
+
+                }
+
+
+            }
+        }
+    }
+
+    grid.setCellColors(possibleInvariateCoords, "#a00", "invariates");
+
+    // load invariate cell selector
+    var invariateSelectElement = document.getElementById("invariateSelect");
+    for (var i=0; i<possibleInvariateCoords.length; i++){
+        var cellRow = possibleInvariateCoords[i][0] + 1;
+        var cellCol = possibleInvariateCoords[i][1];
+        var cellValue = grid.getDataPoint(cellRow, cellCol);
+        var optionValue = cellRow+":"+ cellCol;
+
+        var option = document.createElement("option");
+        option.setAttribute("value", optionValue);
+        option.innerHTML = cellValue + " : " + Grid.getRowLabel(cellRow) + cellCol;
+        invariateSelectElement.appendChild(option);
+    }
+
+
+}
+
+/**
+ * addEvent - This function adds an event handler to an html element in
+ * a way that covers many browser types.
+ * @param elementId - the string id of the element to attach the handler to
+ * or a reference to the element itself.
+ * @param eventType - a string representation of the event to be handled
+ * without the "on" prefix
+ * @param handlerFunction - the function to handle the event
+ */
+function addEvent(elementId, eventType, handlerFunction) {
+    'use strict';
+
+    var element;
+
+    if (typeof(elementId) === "string"){
+        element = document.getElementById(elementId);
+    } else {
+        element = elementId;
+    }
+
+    if (element.addEventListener) {
+        element.addEventListener(eventType, handlerFunction, false);
+    } else if (window.attachEvent) {
+        element.attachEvent("on" + eventType, handlerFunction);
+    }
+} // end of function addEvent
+
+/**
+ * This function handles the window load event. It initializes and fills the
+ * grid with blank data and sets up the event handlers on the
+ */
+function init(){
+
+    addEvent("firstPlateCellRange", "change", firstPlateCellRangeChange);
+    addEvent("applyFirstPlate", "click", searchForPlateInvariates);
+    addEvent("getFile", "click", handleGetFile);
+    addEvent("delimiterList", "change", changeDelimiter);
+}
+
+window.onload = init;
 

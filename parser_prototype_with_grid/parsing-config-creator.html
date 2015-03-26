@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title>Get Tabs working</title>
+    <link rel="stylesheet" href="css/smoothness/jquery-ui.css"/>
+    <link rel="stylesheet" href="css/style.css"/>
+    <link rel="stylesheet" href="css/slick.grid.css" type="text/css"/>
+    <link rel="stylesheet" href="css/slick-default-theme.css"/>
+    <link rel="stylesheet" href="css/Grid.css" type="text/css"/>
+
+    <!-- Bootstrap core CSS -->
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="container">
+
+    <div>selected cells = <span id="selectedCells"></span></div>
+
+    <div class="container-fluid max-height no-overflow" id="content">
+        <div class="row max-height">
+
+            <div class="col-xs-8" id="mainContent">
+                <div id="myGrid"></div>
+            </div>
+
+            <div class="col-xs-4" id="sidebar">
+                <div id="tabs" >
+                    <ul>
+                        <li><a href="#parsingTab">Parsing</a></li>
+                        <li><a href="#plateTab">Plate</a></li>
+                        <li><a href="#featuresTab">Features</a></li>
+                    </ul>
+
+
+                    <div id="parsingTab">
+                        <div>
+                            <label for="parsingName">Parsing Name</label>
+                            <input type="text" id="parsingName"/>
+                        </div>
+                        <div>
+                            <label for="machineName">Machine</label>
+                            <input type="text" id="machineName"/>
+                        </div>
+                        <div>
+                            <div>
+                                <label for="selectedFile">Example File</label>
+                                <span id="selectedFile">no file selected</span>
+                            </div>
+                            <div>
+                                <span>Drag and Drop example file or ...</span>
+                                <input type="file" id="files" name="files[]" multiple />
+                                <button id="getFile">choose file</button>
+                            </div>
+                        </div>
+                        <br/>
+
+                        <div>
+                            <label for="parsingDescription">Parsing Description</label>
+                            <textarea id="parsingDescription"></textarea>
+                        </div>
+                        <div>
+                            <label for="platesPerFile">Plate(s) per file</label>
+                            <div id="platesPerFile">
+                                <input type="radio" name="numPlates" value="single" />single<br />
+                                <input type="radio" name="numPlates" value="multiple" />multiple<br />
+                            </div>
+                        </div>
+                        <br/>
+                        <div>
+                            <label for="valuesPerPlate">Value(s) per well</label>
+                            <div id="valuesPerPlate">
+                                <input type="radio" name="numValues" value="single" />single<br />
+                                <input type="radio" name="numValues" value="multiple" />multiple<br />
+                            </div>
+                        </div>
+                        <br/>
+                        <div>
+                            <label for="wellValueFormat">Well value format</label>
+                            <div id="wellValueFormat">
+                                <input type="radio" name="format" value="grid" />grid<br />
+                                <input type="radio" name="format" value="row" />row per well<br />
+                            </div>
+                        </div>
+                        <div>
+                            <label for="delimiterList">
+                                delimiter
+                            </label>
+
+                            <select name="delimiterList" id="delimiterList" size="3">
+                                <option value="comma">comma</option>
+                                <option value="semicolon">semicolon</option>
+                                <option value="tab">tab</option>
+                            </select>
+                        </div>
+
+
+
+                    </div>
+                    <div id="plateTab">
+                        <p>
+                            Indicate the cell range that covers data for the first plate
+                            in the example file either by highlighting the relevant cells
+                            in the table to the left or by indicating the cell range in
+                            the field below.
+                        </p>
+                        <div>
+                            <label for="firstPlateCellRange">first plate cell range</label>
+                            <input type="text" id="firstPlateCellRange"/>
+                        </div>
+                        <div><button id="applyFirstPlate">Apply</button></div>
+                        <br/>
+                        <div>
+                            <p>
+                                set the plate cells that do not vary from plate to plate
+                            </p>
+
+                            <select name="invariateSelect" id="invariateSelect" size="10" width="100">
+                            </select>
+                            <div>
+                                <button id="removeInvariateCell">Remove cell</button>
+                            </div>
+                            <div>
+                                <label for="cellToAdd">cell to add</label>
+                                <input type="text" id="cellToAdd"/>
+                                <button id="addInvariateCell">add cell</button>
+                            </div>
+
+
+                        </div>
+                    </div>
+
+
+                    <div id="featuresTab">
+                        <div>
+                            <label for="featureList">
+                                Feature List
+                            </label>
+
+                            <select name="featureList" id="featureList" size="10">
+                            </select>
+                        </div>
+                        <div>
+                            <label for="featureCellRange">Cell Range</label>
+                            <input type="text" id="featureCellRange"/>
+                        </div>
+                        <div>
+                            <label for="featureCategory">Category</label>
+                            <input type="text" id="featureCategory"/>
+                        </div>
+                        <div>
+                            <label for="featureLevel">Apply to</label>
+                            <div id="featureLevel">
+                                <div>
+                                    <input type="radio" id="wellLevel" name="featureLevel" value="well" />well<br/>
+                                </div>
+                                <div>
+                                    <input type="radio" name="featureLevel" id="plateLevel" value="plate" />plate<br/>
+                                </div>
+                                <div>
+                                    <input type="radio" id="experimentLevel" name="featureLevel" value="experiment" />experiment<br/>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="labelList">
+                                label List
+                            </label>
+
+                            <select name="labelList" id="labelList" size="5">
+                            </select>
+                        </div>
+
+                        <div>
+                            <button id="newFeature">new feature</button>
+                            <button id="applyFeature">apply</button>
+                            <button id="deleteFeature">delete</button>
+                        </div>
+
+
+
+
+
+                        <div>Label/ID <input type="text" id="featureLabel" /></div>
+
+                        <input type="radio" name="parent-radio" value="repetitive" checked>Repetitive Area <br>
+                        <input type="radio" name="parent-radio" value="area" >Area <br>
+                        <input type="radio" name="parent-radio" value="General" >General <br>
+
+                        <br><br>
+
+                        <input type="radio" name="child-radio" value="data" checked>Data/Plate <br>
+                        <input type="radio" name="child-radio" value="range" >Set of Values <br>
+                        <input type="radio" name="child-radio" value="unique" >One Value <br>
+
+                        <br>
+                        <a href="JavaScript:void(0);" id="btn-add">Add &raquo;</a> <br>
+                        <select name="selectto" id="select-to" size="5">
+                            <!--<option value="-1">FEATURE LIST</option>-->
+                        </select><br>
+                        <a href="JavaScript:void(0);" id="btn-remove">&laquo; Remove</a><br>
+                        <input type="button" id="btn-apply-features" value="Apply" /><br><br>
+
+                        <a href="JavaScript:void(0);" id="btn-add-child">Add &raquo;</a> <br>
+                        <select name="selecttochild" id="select-to-child" size="5">
+                            <!--<option value="-1">FEATURE CHILD</option>-->
+                        </select><br>
+                        <a href="JavaScript:void(0);" id="btn-remove-child">&laquo; Remove</a><br>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="js/lib/jquery-1.11.2.js"></script>
+    <script src="js/lib/jquery-ui.js"></script>
+    <script type="text/javascript" src="js/lib/jquery.event.drag-2.2.js"></script>
+    <script type="text/javascript" src="js/lib/slick.core.js"></script>
+    <script type="text/javascript" src="js/lib/slick.grid.js"></script>
+    <script type="text/javascript" src="js/lib/slick.autotooltips.js"></script>
+    <script type="text/javascript" src="js/lib/slick.cellrangedecorator.js"></script>
+    <script type="text/javascript" src="js/lib/slick.cellrangeselector.js"></script>
+    <script type="text/javascript" src="js/lib/slick.cellcopymanager.js"></script>
+    <script type="text/javascript" src="js/lib/slick.cellselectionmodel.js"></script>
+    <script type="text/javascript" src="js/lib/slick.editors.js"></script>
+    <script type="text/javascript" src="js/Grid.js"></script>
+    <script type="text/javascript" src="js/FileExaminer.js"></script>
+    <script type="text/javascript" src="js/ColorPicker.js"></script>
+    <script type="text/javascript" src="js/parsingConfigCreator.js"></script>
+
+
+
+</body>
+</html>
