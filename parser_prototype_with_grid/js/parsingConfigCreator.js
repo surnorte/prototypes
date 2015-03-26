@@ -101,15 +101,26 @@ var currentBottomRightCoord = null;
 var grid = new Grid("myGrid");
 
 var colorPointer = 0;
+var colorPicker = new ColorPicker();
 var biofeatures = [];
 var matrix = [];
-var lines = [];
 var colsSize =-1;
 var rowsSize =-1;
 var numberOfFeatures =-1;
 var numberOfFeaturesCHILD =-1;
 var colorKeyCounter = 0;
 var highlightKeys = [];
+var examiner = new FileExaminer();
+
+examiner.registerAsLoadListener(function(examiner){
+    setDelimiter(examiner.delimiter);
+    grid.setData(examiner.matrix);
+    grid.fillUpGrid();
+    grid.registerSelectedCellCallBack(handleSelectedCells);
+    colsSize = examiner.colsSize;
+    rowsSize = examiner.rowsSize;
+});
+
 
 
 function applyFeatures(){
@@ -126,7 +137,7 @@ function applyFeatures(){
 
         var numOfRows = endPoint[0] - startPoint[0];
         var numOfCols = endPoint[1] - startPoint[1];
-        var colorFeature = distinctColors[currentFeature.color];
+        var colorFeature = colorPicker.getColorByIndex(currentFeature.color);
 
         for(var j = startPoint[0]; j<rowsSize; j++){
             var newLabel = grid.getDataPoint(j,startPoint[1]).trim();
@@ -153,7 +164,8 @@ function applyFeatures(){
 
                     var numOfRowsChild = endPointChild[0] - startPointChild[0];
                     var numOfColsChild = endPointChild[1] - startPointChild[1];
-                    var colorFeatureChild = distinctColors[currentChild.color];
+                    var colorFeatureChild
+                        = colorPicker.getColorByIndex(currentChild.color);
 
                     coordsToHighlight = [];
                     for(var rowIdxChild = 0; rowIdxChild<=numOfRowsChild; rowIdxChild++) {
@@ -249,7 +261,9 @@ function selectCells(startRow, startCol, endRow, endCol){
         }
     }
     var key = "key" + colorKeyCounter;
-    grid.setCellColors(coordinatesToHighlight,distinctColors[colorPointer], "key" + colorKeyCounter);
+    grid.setCellColors(coordinatesToHighlight,
+                       colorPicker.getColorByIndex(colorPointer),
+                       "key" + colorKeyCounter);
     highlightKeys.push(key);
     colorKeyCounter++;
 
@@ -310,17 +324,22 @@ function file2grid(text, lineTerminator, cellTerminator) {
 }
 
 
-function handleFileSelect(files) {
+function handleFileSelect(event) {
+    var files;
+    var fileNameDisplayElement = document.getElementById("selectedFile");
 
-    if (files.target && files.target.files){
-         files = files.target.files; // FileList object
+    if (event.target && event.target.files){
+        // file input case
+        files = event.target.files; // FileList object
+    } else if (event.dataTransfer && event.dataTransfer.files) {
+        // drag and drop case
+        files = event.dataTransfer.files;
     }
 
     // reset parser
     currentTopLeftCoord = null;
     currentBottomRightCoord = null;
 
-    table = document.getElementById('outputTable');
 
     colorPointer = 0;
     biofeatures = [];
@@ -331,29 +350,27 @@ function handleFileSelect(files) {
     numberOfFeatures =-1;
     numberOfFeaturesCHILD =-1;
 
+    fileNameDisplayElement.innerHTML = files[0].name;
+    examiner.setFile(files[0]);
 
-    // Loop through the FileList and populate the 'outputTable' with the data
-    for (var i = 0, f; f = files[i]; i++) {
-        var reader = new FileReader();
+}
 
-        // Closure to capture the file information.
-        reader.onload = function(e) {
-
-            //call the parse function with the proper line terminator and cell terminator
-            //parseCSV(e.target.result, '\n', '\t');
-            file2grid(e.target.result, '\n', '\t');
-            grid.setData(matrix);
-            grid.fillUpGrid();
-            grid.registerSelectedCellCallBack(handleSelectedCells);
-        };
-
-        // Read the file as text
-        reader.readAsText(f);
-
-    }
+function changeDelimiter(){
+    var delimiter = document.getElementById("delimiterList").value;
+    examiner.reExamineWithDelimiter(delimiter);
 }
 
 document.getElementById('files').addEventListener('change', handleFileSelect, false);
+
+function handleGetFile(){
+    $("#files").click();
+}
+
+function setDelimiter(delimiter){
+    var element = document.getElementById("delimiterList");
+    element.value = delimiter;
+
+}
 
 // Attach listener for when a file is first dragged onto the screen
 document.addEventListener('dragenter', function(e) {
@@ -376,10 +393,10 @@ document.addEventListener('drop', function(e) {
     e.preventDefault();
 
     // Hides the overlay
-    document.body.classList.remove('show-overlay');
+    //document.body.classList.remove('show-overlay');
 
     // Process the files
-    handleFileSelect(e.dataTransfer.files);
+    handleFileSelect(e);
 
 }, false);
 
@@ -478,6 +495,8 @@ function init(){
 
     addEvent("firstPlateCellRange", "change", firstPlateCellRangeChange);
     addEvent("applyFirstPlate", "click", searchForPlateInvariates);
+    addEvent("getFile", "click", handleGetFile);
+    addEvent("delimiterList", "change", changeDelimiter);
 }
 
 window.onload = init;
