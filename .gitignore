@@ -28,3 +28,6 @@
 
 # "temporary" build files
 /target
+
+# Idea IDE folder/files
+/.idea
