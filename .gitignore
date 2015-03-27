@@ -29,6 +29,9 @@
 # "temporary" build files
 /target
 
+# Idea IDE folder/files
+/.idea
+
 # intellij idea files
 /parser_prototype_with_grid/.idea
 /parser_prototype_with_grid/*.iml
