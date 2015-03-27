@@ -48,6 +48,11 @@ function Grid(containerID){
         this.matrix = values[0];
         this.rowsSize = values[1];
         this.colsSize = values[2];
+
+        // reset highlight tracking
+        this.highlightedCellsByColor = {};
+        this.highlightedCellsByKey = {};
+        this.keyToColor = {};
     };
 
 
@@ -161,7 +166,7 @@ function Grid(containerID){
 
         var changes = {};
         for (var i=0; i<coordinates.length; i++){
-            var row = coordinates[i][0];
+            var row = coordinates[i][0] - 1;
             var column = coordinates[i][1];
 
             if(!changes[row]){
@@ -207,17 +212,19 @@ function Grid(containerID){
         this.grid.removeCellCssStyles(key);
 
         cellsToRemoveColor = this.highlightedCellsByKey[key];
-        colorToRemove = this.keyToColor[key];
+        if (cellsToRemoveColor) {
+            colorToRemove = this.keyToColor[key];
 
-        for(var i=0; i<cellsToRemoveColor.length; i++){
-            var index = Grid.coordinateArrayIndexOf(
-                this.highlightedCellsByColor[colorToRemove],
-                cellsToRemoveColor[i]);
-            this.highlightedCellsByColor[colorToRemove].splice(index,1);
+            for(var i=0; i<cellsToRemoveColor.length; i++){
+                var index = Grid.coordinateArrayIndexOf(
+                    this.highlightedCellsByColor[colorToRemove],
+                    cellsToRemoveColor[i]);
+                this.highlightedCellsByColor[colorToRemove].splice(index,1);
+            }
+
+            this.highlightedCellsByKey[key] = null;
+            this.keyToColor[key] = null;
         }
-
-        this.highlightedCellsByKey[key] = null;
-        this.keyToColor[key] = null;
     };
 
     /**
@@ -305,7 +312,8 @@ function Grid(containerID){
      *      endRow - is the row number of the lower right cell bounding the selected cells
      *      endCol - is the column number of the lower right cell bounding the selected
      *          cells
-     * @param callBack - a function to be
+     * @param callBack - a function to be called in the event of a change of selected
+     *              cells, with the parameters as listed above
      */
     this.registerSelectedCellCallBack = function(callBack){
         this.selectedCellsCallBacks.push(callBack);
@@ -365,10 +373,10 @@ function Grid(containerID){
 
         _self.selectedCellsCallBacks.forEach(function(element){
            if (data[0].toCell != 0 && data[0].fromCell != 0){
-               element(data[0].fromRow,
-                   data[0].fromCell,
-                   data[0].toRow,
-                   data[0].toCell
+               element(_self.selectedStartRow,
+                       _self.selectedStartCol,
+                       _self.selectedEndRow,
+                       _self.selectedEndCol
                )
            }
         });

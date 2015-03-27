@@ -10,74 +10,6 @@ if (window.File && window.FileReader && window.FileList && window.Blob) {
     alert('The File APIs are not fully supported in this browser.');
 }
 
-$( "#tabs" ).tabs({
-    active: 2
-});
-
-var distinctColors = [
-    '#00FF00',
-    '#0000FF',
-    '#FF0000',
-    '#01FFFE',
-    '#FFA6FE',
-    '#FFDB66',
-    '#006401',
-    '#010067',
-    '#95003A',
-    '#007DB5',
-    '#FF00F6',
-    '#FFEEE8',
-    '#774D00',
-    '#90FB92',
-    '#0076FF',
-    '#D5FF00',
-    '#FF937E',
-    '#6A826C',
-    '#FF029D',
-    '#FE8900',
-    '#7A4782',
-    '#7E2DD2',
-    '#85A900',
-    '#FF0056',
-    '#A42400',
-    '#00AE7E',
-    '#683D3B',
-    '#BDC6FF',
-    '#263400',
-    '#BDD393',
-    '#00B917',
-    '#9E008E',
-    '#001544',
-    '#C28C9F',
-    '#FF74A3',
-    '#01D0FF',
-    '#004754',
-    '#E56FFE',
-    '#788231',
-    '#0E4CA1',
-    '#91D0CB',
-    '#BE9970',
-    '#968AE8',
-    '#BB8800',
-    '#43002C',
-    '#DEFF74',
-    '#00FFC6',
-    '#FFE502',
-    '#620E00',
-    '#008F9C',
-    '#98FF52',
-    '#7544B1',
-    '#B500FF',
-    '#00FF78',
-    '#FF6E41',
-    '#005F39',
-    '#6B6882',
-    '#5FAD4E',
-    '#A75740',
-    '#A5FFD2',
-    '#FFB167',
-    '#009BFF',
-    '#E85EBE'];
 
 function BioFeature(feaLabel){
     this.parentFeature=null;
@@ -94,6 +26,10 @@ function BioFeature(feaLabel){
     this.bioFeatures=[];
 
 }
+
+var PARSING = 0;
+var PLATE = 1;
+var FEATURES = 2;
 
 var currentTopLeftCoord = null;
 var currentBottomRightCoord = null;
@@ -147,7 +83,7 @@ function applyFeatures(){
 
                 for(var rowIdx = 0; rowIdx<=numOfRows; rowIdx++) {
                     for(var colIdx = 0; colIdx<=numOfCols; colIdx++) {
-                        coordsToHighlight.push([rowIdx-1+j,colIdx + relativeCol]);
+                        coordsToHighlight.push([rowIdx+j,colIdx + relativeCol]);
                     }
                 }
                 grid.setCellColors(coordsToHighlight, colorFeature, "key" + colorKeyCounter);
@@ -172,7 +108,7 @@ function applyFeatures(){
                         for(var colIdxChild = 0; colIdxChild<=numOfColsChild; colIdxChild++) {
 
                             coordsToHighlight.push([
-                                rowIdxChild+relativeChildRow+j-1,
+                                rowIdxChild+relativeChildRow+j,
                                 colIdxChild+relativeChildCol+relativeCol
                             ]);
                         }
@@ -197,6 +133,7 @@ $( "#btn-apply-features" ).click(function() {
 function addFeature(isParent){
     var newFeature = new BioFeature($('#featureLabel').text());
     newFeature.topLeftCoords=currentTopLeftCoord;
+    console.log("currentTLC =" + currentTopLeftCoord);
     newFeature.topLeftValue=grid.getDataPoint(currentTopLeftCoord[0], currentTopLeftCoord[1]);
     newFeature.bottomRightCoords=currentBottomRightCoord;
     newFeature.bottomRightValue=grid.getDataPoint(currentBottomRightCoord[0], currentBottomRightCoord[1]);
@@ -235,15 +172,15 @@ function handleSelectedCells(startRow, startCol, endRow, endCol){
     selectCells(startRow, startCol, endRow, endCol);
 
     var plateRangeInput = document.getElementById("firstPlateCellRange");
-    plateRangeInput.value = Grid.getRowLabel(startRow+1)+startCol+":"
-    +Grid.getRowLabel(endRow+1)+endCol;
+    plateRangeInput.value = Grid.getRowLabel(startRow)+startCol+":"
+    +Grid.getRowLabel(endRow)+endCol;
 }
 
 function selectCells(startRow, startCol, endRow, endCol){
     // write to the selected cells div, the cells that are selected
     var out = document.getElementById("selectedCells");
-    out.innerHTML = Grid.getRowLabel(startRow+1)+startCol+":"
-    +Grid.getRowLabel(endRow+1)+endCol;
+    out.innerHTML = Grid.getRowLabel(startRow)+startCol+":"
+    +Grid.getRowLabel(endRow)+endCol;
 
 
 
@@ -268,8 +205,8 @@ function selectCells(startRow, startCol, endRow, endCol){
     colorKeyCounter++;
 
     // set the current selected cells variables
-    currentTopLeftCoord = [startRow+1,startCol];
-    currentBottomRightCoord = [endRow+1,endCol];
+    currentTopLeftCoord = [startRow,startCol];
+    currentBottomRightCoord = [endRow,endCol];
 }
 
 
@@ -429,7 +366,7 @@ function searchForPlateInvariates(){
                         timesFound++;
                         if (timesFound >= threshold) {
 
-                            possibleInvariateCoords.push([row-1,col]);
+                            possibleInvariateCoords.push([row,col]);
                             break;
                         }
                     }
@@ -456,8 +393,17 @@ function searchForPlateInvariates(){
         option.innerHTML = cellValue + " : " + Grid.getRowLabel(cellRow) + cellCol;
         invariateSelectElement.appendChild(option);
     }
+}
 
-
+/**
+ * This function returns the active tab, to be compared with the constants:
+ *      PARSING
+ *      PLATE
+ *      FEATURES
+ * @returns {*|jQuery}
+ */
+function getActiveTab(){
+    return $("#tabs").tabs( "option", "active" );
 }
 
 /**
@@ -497,6 +443,11 @@ function init(){
     addEvent("applyFirstPlate", "click", searchForPlateInvariates);
     addEvent("getFile", "click", handleGetFile);
     addEvent("delimiterList", "change", changeDelimiter);
+
+    // to get jQuery-UI tab functionality working
+    $( "#tabs" ).tabs({
+        active: 0
+    });
 }
 
 window.onload = init;
