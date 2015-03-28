@@ -1,5 +1,19 @@
 @import url('slick-default-theme.css');
 
+/**
+ * Bootstrap conflict fix
+ * if you change the id on the Grid container div to something other than "myGrid"
+ * make sure to change the "myDiv" below to your new id
+ */
+#myGrid, #myGrid div {
+    -webkit-box-sizing: content-box;
+    -moz-box-sizing: content-box;
+    box-sizing: content-box;
+}
+
+/** end of bootstrap css conflict fix**/
+
+
 * {
     font-family: arial;
     font-size: 8pt;
