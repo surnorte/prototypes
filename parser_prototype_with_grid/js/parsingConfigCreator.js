@@ -27,6 +27,7 @@ function BioFeature(feaLabel){
 
 }
 
+
 var PARSING = 0;
 var PLATE = 1;
 var FEATURES = 2;
@@ -60,74 +61,59 @@ examiner.registerAsLoadListener(function(examiner){
 });
 
 
+function scanGrid(fromLimit, toLimit, bios, parentRelCol, parentRow ,isparent){
 
-function applyFeatures(){
+    for(var i = fromLimit; i < toLimit; i++){
 
-    for(var i = 0; i < biofeatures.length; i++){
-
-        var currentFeature = biofeatures[i];
-
+        var currentFeature = bios[i];
         var breakLabel = currentFeature.topLeftValue.trim();
-
         var startPoint = currentFeature.topLeftCoords;
         var endPoint = currentFeature.bottomRightCoords;
         var relativeCol = currentFeature.relativeToLeftX;
-
+        var relativeRow= currentFeature.relativeToLeftY;
         var numOfRows = endPoint[0] - startPoint[0];
         var numOfCols = endPoint[1] - startPoint[1];
         var colorFeature = colorPicker.getColorByIndex(currentFeature.color);
 
-        for(var j = startPoint[0]; j<rowsSize; j++){
-            var newLabel = grid.getDataPoint(j,startPoint[1]).trim();
-
-            if(breakLabel == newLabel){
-                var coordsToHighlight = [];
-
-                for(var rowIdx = 0; rowIdx<=numOfRows; rowIdx++) {
-                    for(var colIdx = 0; colIdx<=numOfCols; colIdx++) {
-                        coordsToHighlight.push([rowIdx+j,colIdx + relativeCol]);
-                    }
-                }
-                grid.setCellColors(coordsToHighlight, colorFeature, colorPicker.getDistinctColorKey());
-
-
-                for(var idxChild = 0; idxChild < currentFeature.bioFeatures.length; idxChild++) {
-                    var currentChild = currentFeature.bioFeatures[idxChild];
-
-                    var startPointChild = currentChild.topLeftCoords;
-                    var endPointChild = currentChild.bottomRightCoords;
-                    var relativeChildCol = currentChild.relativeToLeftX;
-                    var relativeChildRow= currentChild.relativeToLeftY;
-
-                    var numOfRowsChild = endPointChild[0] - startPointChild[0];
-                    var numOfColsChild = endPointChild[1] - startPointChild[1];
-                    var colorFeatureChild
-                        = colorPicker.getColorByIndex(currentChild.color);
-
-                    coordsToHighlight = [];
-                    for(var rowIdxChild = 0; rowIdxChild<=numOfRowsChild; rowIdxChild++) {
-                        for(var colIdxChild = 0; colIdxChild<=numOfColsChild; colIdxChild++) {
-
-                            coordsToHighlight.push([
-                                rowIdxChild+relativeChildRow+j,
-                                colIdxChild+relativeChildCol+relativeCol
-                            ]);
-                        }
-                    }
-
-                    grid.setCellColors(coordsToHighlight, colorFeatureChild, colorPicker.getDistinctColorKey());
-                }
-
-                j=j+rowIdx-1;
-            }
-            //console.log("ROwS " + j);
+        if (isparent) {
+            searchPatternMatching(startPoint[0], startPoint[1], breakLabel, numOfRows, numOfCols, relativeCol, colorFeature, currentFeature);
+        }else{
+            traverseRowsCols(numOfRows,numOfCols,(relativeCol+parentRelCol),(relativeRow+parentRow),colorFeature);
         }
-
     }
 }
 
+
+function traverseRowsCols(numOfRows, numOfCols,relativeCol, parentRow , colorFeature){
+
+    var coordsToHighlight = [];
+    var rowIndex;
+    for(rowIndex = 0; rowIndex<=numOfRows; rowIndex++) {
+        for(var colIdx = 0; colIdx<=numOfCols; colIdx++) {
+            coordsToHighlight.push([(rowIndex + parentRow),(colIdx + relativeCol)]);
+        }
+    }
+    grid.setCellColors(coordsToHighlight, colorFeature, colorPicker.getDistinctColorKey());
+
+    return rowIndex;
+}
+
+function searchPatternMatching(startPointRow, startPointCol,breakLabel,numOfRows,numOfCols,relativeCol,colorFeature,currentFeature){
+
+    for(var parentRow = startPointRow; parentRow<rowsSize; parentRow++){
+        var newLabel = grid.getDataPoint(parentRow,startPointCol).trim();
+
+        if(breakLabel == newLabel){
+            var rowIdx = traverseRowsCols(numOfRows, numOfCols,relativeCol, parentRow , colorFeature);
+            scanGrid(0,currentFeature.bioFeatures.length,currentFeature.bioFeatures,relativeCol,parentRow,false);
+            parentRow=parentRow+rowIdx-1;
+        }
+    }
+}
+
+
 $( "#btn-apply-features" ).click(function() {
-    applyFeatures();
+    scanGrid(0, biofeatures.length,biofeatures,0,0,true);
 });
 
 
