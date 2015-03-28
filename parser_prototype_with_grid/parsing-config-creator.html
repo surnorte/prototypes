@@ -61,24 +61,24 @@
                         <div>
                             <label for="platesPerFile">Plate(s) per file</label>
                             <div id="platesPerFile">
-                                <input type="radio" name="numPlates" value="single" />single<br />
-                                <input type="radio" name="numPlates" value="multiple" />multiple<br />
+                                <input type="radio" id="singlePlate" name="numPlates" value="single" />single<br />
+                                <input type="radio" id="multiplePlates" name="numPlates" value="multiple" />multiple<br />
                             </div>
                         </div>
                         <br/>
                         <div>
                             <label for="valuesPerPlate">Value(s) per well</label>
                             <div id="valuesPerPlate">
-                                <input type="radio" name="numValues" value="single" />single<br />
-                                <input type="radio" name="numValues" value="multiple" />multiple<br />
+                                <input type="radio" id="singleValue" name="numValues" value="single" />single<br />
+                                <input type="radio" id="multipleValues" name="numValues" value="multiple" />multiple<br />
                             </div>
                         </div>
                         <br/>
                         <div>
                             <label for="wellValueFormat">Well value format</label>
                             <div id="wellValueFormat">
-                                <input type="radio" name="format" value="grid" />grid<br />
-                                <input type="radio" name="format" value="row" />row per well<br />
+                                <input type="radio" id="gridFormat" name="format" value="grid" />grid<br />
+                                <input type="radio" id="rowFormat" name="format" value="row" />row per well<br />
                             </div>
                         </div>
                         <div>
@@ -91,6 +91,9 @@
                                 <option value="semicolon">semicolon</option>
                                 <option value="tab">tab</option>
                             </select>
+                        </div>
+                        <div>
+                            <button id="saveConfig">save</button>
                         </div>
 
 
@@ -108,6 +111,9 @@
                             <input type="text" id="firstPlateCellRange"/>
                         </div>
                         <div><button id="applyFirstPlate">Apply</button></div>
+
+                        <!-- This may be useful later for more in depth pattern matching
+
                         <br/>
                         <div>
                             <p>
@@ -126,7 +132,7 @@
                             </div>
 
 
-                        </div>
+                        </div> -->
                     </div>
 
 
@@ -154,7 +160,7 @@
                                     <input type="radio" id="wellLevel" name="featureLevel" value="well" />well<br/>
                                 </div>
                                 <div>
-                                    <input type="radio" name="featureLevel" id="plateLevel" value="plate" />plate<br/>
+                                    <input type="radio" id="plateLevel" name="featureLevel" value="plate" />plate<br/>
                                 </div>
                                 <div>
                                     <input type="radio" id="experimentLevel" name="featureLevel" value="experiment" />experiment<br/>
@@ -173,14 +179,17 @@
 
                         <div>
                             <button id="newFeature">new feature</button>
-                            <button id="applyFeature">apply</button>
+                            <button id="saveFeature">save feature</button>
                             <button id="deleteFeature">delete</button>
+                        </div>
+                        <div>
+                            <button id="applyFeatures">apply</button>
                         </div>
 
 
 
 
-
+                        <!-- original interface -->
                         <div>Label/ID <input type="text" id="featureLabel" /></div>
 
                         <input type="radio" name="parent-radio" value="repetitive" checked>Repetitive Area <br>
@@ -206,6 +215,10 @@
                             <!--<option value="-1">FEATURE CHILD</option>-->
                         </select><br>
                         <a href="JavaScript:void(0);" id="btn-remove-child">&laquo; Remove</a><br>
+
+                        <!-- end of original interface -->
+
+
                     </div>
                 </div>
             </div>
@@ -227,6 +240,7 @@
     <script type="text/javascript" src="js/Grid.js"></script>
     <script type="text/javascript" src="js/FileExaminer.js"></script>
     <script type="text/javascript" src="js/ColorPicker.js"></script>
+    <script type="text/javascript" src="js/ParsingConfig.js"></script>
     <script type="text/javascript" src="js/parsingConfigCreator.js"></script>
 
 

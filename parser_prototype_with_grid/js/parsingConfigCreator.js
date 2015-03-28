@@ -35,16 +35,18 @@ var currentTopLeftCoord = null;
 var currentBottomRightCoord = null;
 
 var grid = new Grid("myGrid");
+var parsingConfig;
 
 var colorPointer = 0;
+var colorKeyCounter = 0;
 var colorPicker = new ColorPicker();
+
 var biofeatures = [];
-var matrix = [];
 var colsSize =-1;
 var rowsSize =-1;
 var numberOfFeatures =-1;
 var numberOfFeaturesCHILD =-1;
-var colorKeyCounter = 0;
+
 var highlightKeys = [];
 var examiner = new FileExaminer();
 
@@ -86,8 +88,7 @@ function applyFeatures(){
                         coordsToHighlight.push([rowIdx+j,colIdx + relativeCol]);
                     }
                 }
-                grid.setCellColors(coordsToHighlight, colorFeature, "key" + colorKeyCounter);
-                colorKeyCounter++;
+                grid.setCellColors(coordsToHighlight, colorFeature, colorPicker.getDistinctColorKey());
 
 
                 for(var idxChild = 0; idxChild < currentFeature.bioFeatures.length; idxChild++) {
@@ -114,8 +115,7 @@ function applyFeatures(){
                         }
                     }
 
-                    grid.setCellColors(coordsToHighlight, colorFeatureChild, "key" + colorKeyCounter);
-                    colorKeyCounter++;
+                    grid.setCellColors(coordsToHighlight, colorFeatureChild, colorPicker.getDistinctColorKey());
                 }
 
                 j=j+rowIdx-1;
@@ -130,19 +130,31 @@ $( "#btn-apply-features" ).click(function() {
     applyFeatures();
 });
 
-function addFeature(isParent){
-    var newFeature = new BioFeature($('#featureLabel').text());
-    newFeature.topLeftCoords=currentTopLeftCoord;
-    console.log("currentTLC =" + currentTopLeftCoord);
-    newFeature.topLeftValue=grid.getDataPoint(currentTopLeftCoord[0], currentTopLeftCoord[1]);
-    newFeature.bottomRightCoords=currentBottomRightCoord;
-    newFeature.bottomRightValue=grid.getDataPoint(currentBottomRightCoord[0], currentBottomRightCoord[1]);
-    newFeature.relativeToLeftX = currentTopLeftCoord[0];
-    newFeature.relativeToLeftY = currentTopLeftCoord[1];
+
+// feature adding section
+function addFeatureLegacy(isParent){
+    return addFeature(
+        $('#featureLabel').text(),
+        grid,
+        isParent,
+        biofeatures[$("#select-to option:selected").val()],
+        $('input[name=parent-radio]:checked').val(),
+        $('input[name=child-radio]:checked').val()
+    );
+}
+
+function addFeature(name, grid, isParent, parent, typeOfParent, typeOfChild){
+    var newFeature = new BioFeature(name);
+    newFeature.topLeftCoords= [grid.selectedStartRow, grid.selectedStartCol];
+    newFeature.topLeftValue=grid.getDataPoint(grid.selectedStartRow, grid.selectedStartCol);
+    newFeature.bottomRightCoords = [grid.selectedEndRow, grid.selectedEndCol];
+    newFeature.bottomRightValue= grid.getDataPoint(grid.selectedEndRow, grid.selectedEndCol);
+    newFeature.relativeToLeftX = grid.selectedStartRow;
+    newFeature.relativeToLeftY = grid.selectedStartCol;
     if (isParent) {
-        newFeature.typeOfParent = $('input[name=parent-radio]:checked').val();
+        newFeature.typeOfParent = typeOfParent;
     } else {
-        newFeature.typeOfChild = $('input[name=child-radio]:checked').val();
+        newFeature.typeOfChild = typeOfChild;
 
         // When it is one value set both top and bottom properties to
         // the same value.
@@ -150,15 +162,74 @@ function addFeature(isParent){
             newFeature.bottomRightCoords=newFeature.topLeftCoords;
             newFeature.bottomRightValue=newFeature.topLeftValue;
         }
-        newFeature.parentFeature = biofeatures[$("#select-to option:selected").val()];
+        newFeature.parentFeature = parent;
         newFeature.parentFeature.bioFeatures.push(newFeature);
         newFeature.relativeToLeftX = newFeature.topLeftCoords[1] - newFeature.parentFeature.topLeftCoords[1];
         newFeature.relativeToLeftY = newFeature.topLeftCoords[0] - newFeature.parentFeature.topLeftCoords[0];
         newFeature.importData = true;
     }
     newFeature.color=colorPointer;
+    colorPointer++;
+
+    console.log(newFeature);
     return newFeature;
 }
+
+function addPlate(grid){
+    parsingConfig.plate = addFeature("plate", grid, true, null, "plate", null );
+
+    return parsingConfig.plate
+}
+
+function addExperimentLevelFeature(name, grid){
+    return addFeature(name, grid, true, null, "experimentFeature", null);
+}
+
+function addPlateLevelFeature(name, grid){
+    return addFeature(name, grid, false, parsingConfig.plate, null, 'unique');
+}
+
+function addWellLevelFeature(name, grid){
+    return addFeature(name, grid, false, parsingConfig.plate, null, 'data');
+}
+
+function makePlate(){
+    biofeatures.push(addPlate(grid));
+
+    // legacy compliance
+    $('#select-to').append("<option value='"+(numberOfFeatures+1)+"'>"+"plate"+"</option>");
+}
+
+function makeFeature(){
+    var category = document.getElementById("featureCategory").value;
+    var feature;
+
+
+    if (document.getElementById("wellLevel").checked){
+        feature = addWellLevelFeature(category, grid);
+    } else if (document.getElementById("plateLevel").checked){
+        feature = addPlateLevelFeature(category, grid);
+    } else if (document.getElementById("experimentLevel").checked){
+        feature = addExperimentLevelFeature(category, grid);
+    }
+
+    // load feature selector
+    var featureSelectElement = document.getElementById("featureList");
+    var optionValue = feature.featureLabel;
+    var option = document.createElement("option");
+    option.setAttribute("value", optionValue);
+    option.innerHTML = feature.featureLabel + " "
+                        + Grid.getRowLabel(grid.selectedStartRow) + grid.selectedStartCol
+                        +":"+ Grid.getRowLabel(grid.selectedEndRow) + grid.selectedEndCol;
+    featureSelectElement.appendChild(option);
+
+
+    // legacy compliance
+    $('#select-to-child').append("<option value='"+(numberOfFeatures+1)+"'>"+category+"</option>");
+}
+
+
+// end of feature adding section
 
 
 /**
@@ -171,8 +242,14 @@ function addFeature(isParent){
 function handleSelectedCells(startRow, startCol, endRow, endCol){
     selectCells(startRow, startCol, endRow, endCol);
 
+    // plate range input on the plate page
     var plateRangeInput = document.getElementById("firstPlateCellRange");
     plateRangeInput.value = Grid.getRowLabel(startRow)+startCol+":"
+    +Grid.getRowLabel(endRow)+endCol;
+
+    // feature range input on the feature page
+    var featureRangeInput = document.getElementById("featureCellRange");
+    featureRangeInput.value = Grid.getRowLabel(startRow)+startCol+":"
     +Grid.getRowLabel(endRow)+endCol;
 }
 
@@ -197,12 +274,10 @@ function selectCells(startRow, startCol, endRow, endCol){
             coordinatesToHighlight.push([i,j]);
         }
     }
-    var key = "key" + colorKeyCounter;
     grid.setCellColors(coordinatesToHighlight,
                        colorPicker.getColorByIndex(colorPointer),
-                       "key" + colorKeyCounter);
-    highlightKeys.push(key);
-    colorKeyCounter++;
+                       colorPicker.getCurrentColorKey());
+    highlightKeys.push(colorPicker.getCurrentColorKey());
 
     // set the current selected cells variables
     currentTopLeftCoord = [startRow,startCol];
@@ -212,17 +287,15 @@ function selectCells(startRow, startCol, endRow, endCol){
 
 $('#btn-add-child').click(function(){
     $('#select-to-child').append("<option value='"+(numberOfFeaturesCHILD+1)+"'>"+$('#featureLabel').val()+"</option>");
-    addFeature(false);
+    addFeatureLegacy(false);
     colorPointer++;
-    console.log(biofeatures);
     $('#featureLabel').val('');
 });
 
 $('#btn-add').click(function(){
     $('#select-to').append("<option value='"+(numberOfFeatures+1)+"'>"+$('#featureLabel').val()+"</option>");
-    biofeatures.push(addFeature(true));
+    biofeatures.push(addFeatureLegacy(true));
     colorPointer++;
-    console.log(biofeatures);
     $('#featureLabel').val('');
 });
 
@@ -232,33 +305,6 @@ $('#btn-remove').click(function(){
         numberOfFeatures--;
     });
 });
-
-
-function file2grid(text, lineTerminator, cellTerminator) {
-
-    matrix = [];
-    var lines;
-
-    //break the lines apart
-    lines = text.split(lineTerminator);
-    rowsSize = lines.length;
-
-    for(var j = 0; j<rowsSize; j++){
-
-        var information = lines[j].split(cellTerminator);
-
-        if (information.length > colsSize){
-            colsSize = information.length;
-        }
-
-        matrix[j] = [];
-        for(var k = 0; k < information.length; k++){
-            matrix[j][k] = information[k];
-        }
-    }
-
-
-}
 
 
 function handleFileSelect(event) {
@@ -280,7 +326,6 @@ function handleFileSelect(event) {
 
     colorPointer = 0;
     biofeatures = [];
-    matrix = [];
     lines = [];
     colsSize =-1;
     rowsSize =-1;
@@ -337,15 +382,29 @@ document.addEventListener('drop', function(e) {
 
 }, false);
 
+
 function firstPlateCellRangeChange(){
     var plateRangeInput = document.getElementById("firstPlateCellRange");
-    var range = plateRangeInput.value.trim();
+    cellRangeChange(plateRangeInput);
+}
+
+function featureCellRangeChange(){
+    var featureRangeInput = document.getElementById("featureCellRange");
+    cellRangeChange(featureRangeInput);
+}
+
+function cellRangeChange(inputElement){
+    var range = inputElement.value.trim();
     var rangeSplit = range.split(":");
     var start = rangeSplit[0].trim();
     var end = rangeSplit[1].trim();
     start = Grid.getCellCoordinates(start);
     end = Grid.getCellCoordinates(end);
-    selectCells(start[0]-1, start[1], end[0]-1, end[1]);
+    grid.selectedStartRow = start[0];
+    grid.selectedStartCol = start[1];
+    grid.selectedEndRow = end[0];
+    grid.selectedEndCol = end[1];
+    selectCells(start[0], start[1], end[0], end[1]);
 }
 
 function searchForPlateInvariates(){
@@ -378,7 +437,8 @@ function searchForPlateInvariates(){
         }
     }
 
-    grid.setCellColors(possibleInvariateCoords, "#a00", "invariates");
+    var invariatesKey = colorPicker.getDistinctColorKey();
+    grid.setCellColors(possibleInvariateCoords, "#a00", invariatesKey);
 
     // load invariate cell selector
     var invariateSelectElement = document.getElementById("invariateSelect");
@@ -395,6 +455,41 @@ function searchForPlateInvariates(){
     }
 }
 
+function createParsingConfig(){
+    var name = document.getElementById("parsingName").value;
+    var machine = document.getElementById("machineName").value;
+    var description = document.getElementById("parsingDescription").value;
+    var exampleFileName = document.getElementById("selectedFile").innerHTML;
+    var exampleFileContents = examiner.fileContents;
+    var multiplePlatesPerFile = document.getElementById("multiplePlates").checked;
+    var multipleValuesPerWell = document.getElementById("multipleValues").checked;
+    var gridFormat = document.getElementById("gridFormat").checked;
+
+    if (parsingConfig){
+        parsingConfig.name = name;
+        parsingConfig.machineName = machine;
+        parsingConfig.description = description;
+        parsingConfig.exampleFileName = exampleFileName;
+        parsingConfig.exampleFileContents = exampleFileContents;
+        parsingConfig.delimiter = examiner.delimiter;
+        parsingConfig.multiplePlatesPerFile = multiplePlatesPerFile;
+        parsingConfig.multipleValuesPerWell = multipleValuesPerWell;
+        parsingConfig.gridFormat = gridFormat;
+    }
+    parsingConfig = new ParsingConfig(
+            name,
+            machine,
+            description,
+            exampleFileName,
+            exampleFileContents,
+            examiner.delimiter,
+            multiplePlatesPerFile,
+            multipleValuesPerWell,
+            gridFormat
+    );
+    console.log(parsingConfig);
+}
+
 /**
  * This function returns the active tab, to be compared with the constants:
  *      PARSING
@@ -405,6 +500,7 @@ function searchForPlateInvariates(){
 function getActiveTab(){
     return $("#tabs").tabs( "option", "active" );
 }
+
 
 /**
  * addEvent - This function adds an event handler to an html element in
@@ -440,9 +536,13 @@ function addEvent(elementId, eventType, handlerFunction) {
 function init(){
 
     addEvent("firstPlateCellRange", "change", firstPlateCellRangeChange);
-    addEvent("applyFirstPlate", "click", searchForPlateInvariates);
+    addEvent("featureCellRange", "change", featureCellRangeChange);
+    addEvent("applyFirstPlate", "click", makePlate);
     addEvent("getFile", "click", handleGetFile);
     addEvent("delimiterList", "change", changeDelimiter);
+    addEvent("saveConfig", "click", createParsingConfig);
+    addEvent("saveFeature", "click", makeFeature);
+    addEvent("applyFeatures", "click", applyFeatures);
 
     // to get jQuery-UI tab functionality working
     $( "#tabs" ).tabs({

@@ -8,6 +8,7 @@
  */
 function ColorPicker(){
     var colorPointer = 0;
+    var colorKeyCounter = 0;
 
     var distinctColors = [
         '#00FF00',
@@ -81,6 +82,7 @@ function ColorPicker(){
      */
     this.getNextColor = function(){
         colorPointer = (colorPointer + 1) % distinctColors.length;
+        colorkeyCounter++;
         return distinctColors[colorPointer];
     };
 
@@ -93,7 +95,7 @@ function ColorPicker(){
         if (colorPointer < 0){
             colorPointer = colorPointer + distinctColors.length;
         }
-        console.log("colorpointer " + colorPointer);
+        colorKeyCounter++;
         return distinctColors[colorPointer];
     };
 
@@ -102,6 +104,7 @@ function ColorPicker(){
      * @returns {string}
      */
     this.getCurrentColor = function(){
+        colorKeyCounter++;
         return distinctColors[colorPointer];
     };
 
@@ -118,10 +121,20 @@ function ColorPicker(){
             index = index + distinctColors.length;
         }
 
+        colorKeyCounter++;
         return distinctColors[index];
+    };
+
+    this.getDistinctColorKey = function(){
+        colorKeyCounter++;
+        return this.getCurrentColorKey();
+    };
+
+    this.getCurrentColorKey = function(){
+        return "key" + colorKeyCounter;
     };
 
     this.resetColorPicker = function(){
         colorPointer = 0;
-    }
+    };
 }
