@@ -58,10 +58,10 @@
 							<div>Label:<input type="text" id="newLabelValue"/></div>
 							<div>Color:<input type="color" id="newColorValue" value="#FFFF00"/></div>
 							<hr/>
+							<div><button id="addNewLabel">Apply New Label</button><button id="cancelNewLabel">Cancel</button></div>
+							<hr/>
 							<strong><-- Select Wells To Apply Labels To:</strong>
 							<div> <button id="clearLastSelection">Undo Last Selection</button><button id="clearAllSelection">Clear Selection</button></div>
-							<hr/>
-							<div><button id="addNewLabel">Apply New Label</button><button id="cancelNewLabel">Cancel</button></div>
 						</div>
 					</div>
 					
@@ -86,8 +86,8 @@
         <script type="text/javascript">
             // constants
             var DIMENSION = 100;
-			var CELLHEIGHT = 50;
-			var CELLWIDTH = 110;
+			var CELL_HEIGHT = 50;
+			var CELL_WIDTH = 110;
             var data;
 			//var categories = {};	// note declaring as an object ???
 			var cellCats = {};
@@ -210,12 +210,11 @@
                 grid.setData(data);
 
                 // display the data
-                grid.fillUpGrid(CELLWIDTH, CELLHEIGHT);
+                grid.fillUpGrid(CELL_WIDTH, CELL_HEIGHT);
 
                 // register a function to be called each time a new set of cells are
                 // selected by a user
                 grid.registerSelectedCellCallBack(handleSelectedCells);
-
             }
 
             /**
@@ -226,7 +225,7 @@
             function loadRandomData(){
                 data = createRandomData();
                 grid.setData(data);
-                grid.fillUpGrid(CELLWIDTH, CELLHEIGHT);
+                grid.fillUpGrid(CELL_WIDTH, CELL_HEIGHT);
             }
 			
 			function onCatColorChange(){
@@ -261,6 +260,8 @@
 						var row = cellRefArr[0];
 						var column = cellRefArr[1];
 						cellCats[row][column]["cats"][cat] = color;
+						
+						catLegend[cat][label]['color'] = color;
 						
 						// update actual grid cell
 						var newContents = cellCats[row][column]["value"];
@@ -378,10 +379,12 @@
 			function updateLabelName(cat, oldLabel, label) {	// should we allow for change of category also ??
 				// update color legend cell reverse lookup				
 				if (catLegend[cat][label] == null) {
-					catLegend[cat][label] = {};
-					catLegend[cat][label]["cellref"] = [];
+					//catLegend[cat][label] = {};
+					//catLegend[cat][label]["cellref"] = [];
 					catLegend[cat][label] = catLegend[cat][oldLabel];
 
+					console.log("Old color:"+catLegend[cat][oldLabel]['color']);
+					console.log("New color:"+catLegend[cat][label]['color']);
 					// remove old label
 					delete catLegend[cat][oldLabel];
 					

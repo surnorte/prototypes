@@ -59,8 +59,8 @@
         <script type="text/javascript">
             // constants
             var DIMENSION = 100;
-			var CELLHEIGHT = 25;
-			var CELLWIDTH = 40;
+			var CELL_HEIGHT = 25;
+			var CELL_WIDTH = 40;
             var data;
 			var cellValues = {};
 			var wellGroupings = [];
@@ -178,7 +178,7 @@
                 grid.setData(data);
 
                 // display the data
-                grid.fillUpGrid(CELLWIDTH, CELLHEIGHT);
+                grid.fillUpGrid(CELL_WIDTH, CELL_HEIGHT);
 
                 // register a function to be called each time a new set of cells are
                 // selected by a user
