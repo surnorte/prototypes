@@ -58,14 +58,15 @@
 							<div>Label:<input type="text" id="newLabelValue"/></div>
 							<div>Color:<input type="color" id="newColorValue" value="#FFFF00"/></div>
 							<hr/>
+							<div><button id="addNewLabel">Apply New Label</button><button id="cancelNewLabel">Cancel</button></div>
+							<hr/>
 							<strong><-- Select Wells To Apply Labels To:</strong>
 							<div> <button id="clearLastSelection">Undo Last Selection</button><button id="clearAllSelection">Clear Selection</button></div>
-							<hr/>
-							<div><button id="addNewLabel">Apply New Label</button><button id="cancelNewLabel">Cancel</button></div>
 						</div>
 					</div>
 					
 					<div id="categoryList"/>
+					
 				</div>
 				<div id="tabs-3">
 					<h1>Plate Level Labels:</h1>
@@ -77,19 +78,29 @@
 				</div>
 			</div>
 		</div>
+		<div id="editLabelDialog" title="New Label Name">
+			<input type="text" id="editNewLabelValue"/>
+		</div>
+		
 		
         <script type="text/javascript">
             // constants
             var DIMENSION = 100;
+			var CELL_HEIGHT = 50;
+			var CELL_WIDTH = 110;
             var data;
-			var categories = [];
-			var cellCats = [];
-			var legendCellRef = [];
+			//var categories = {};	// note declaring as an object ???
+			var cellCats = {};
+			var catLegend = {};
             var grid;
             var currentHighlightKeys = [];
             var highlightKeyCounter = 0;
             var currentHighlightColor = "#D5E3E3";
 			var highlightedCoords = [];
+			
+			// tmp editlabel vars
+			var tmpEditOldLabel;
+			var tmpEditCat;
 
             /**
              * A function that creates a blank data set for initializing the grid example
@@ -199,12 +210,11 @@
                 grid.setData(data);
 
                 // display the data
-                grid.fillUpGrid();
+                grid.fillUpGrid(CELL_WIDTH, CELL_HEIGHT);
 
                 // register a function to be called each time a new set of cells are
                 // selected by a user
                 grid.registerSelectedCellCallBack(handleSelectedCells);
-
             }
 
             /**
@@ -215,7 +225,7 @@
             function loadRandomData(){
                 data = createRandomData();
                 grid.setData(data);
-                grid.fillUpGrid();
+                grid.fillUpGrid(CELL_WIDTH, CELL_HEIGHT);
             }
 			
 			function onCatColorChange(){
@@ -225,15 +235,33 @@
 				updateCellColors(cat, label, this.value);	
             }
 			
+			function onEditLabelChange(){		// some issues here !! (when editing 1st label in cat, it actually changes 2nd !!)
+				var idArr = this.id.split("-");
+				tmpEditCat = idArr[1];
+				tmpEditOldLabel = idArr[2];
+				console.log("editLabel: "+ tmpEditCat + ";" + tmpEditOldLabel);
+				$("#editLabelDialog").dialog("open");
+            }
+			
+			function onDeleteLabelChange(){
+				var idArr = this.id.split("-");
+				var cat = idArr[1];
+				var label = idArr[2];
+				console.log("deleteLabel: "+ cat + ";" + label);
+				removeLabel(cat, label)
+            }
+			
 			function updateCellColors(cat, label, color) {
 				// update all cells with cat and label (messy?)
-				if (legendCellRef[cat] != undefined) {
-					for (var cellRef in legendCellRef[cat][label]) {			//change iteration method !!!
+				if (catLegend[cat] != undefined && catLegend[cat][label] != undefined) {
+					for (var cellRef in catLegend[cat][label]["cellref"]) {			//change iteration method !!!
 						// what are you doing here ??, define some sort of structure !!!
-						var cellRefArr = legendCellRef[cat][label][cellRef].split("-");
+						var cellRefArr = catLegend[cat][label]["cellref"][cellRef].split("-");
 						var row = cellRefArr[0];
 						var column = cellRefArr[1];
 						cellCats[row][column]["cats"][cat] = color;
+						
+						catLegend[cat][label]['color'] = color;
 						
 						// update actual grid cell
 						var newContents = cellCats[row][column]["value"];
@@ -246,14 +274,31 @@
 			}
 			
 			function createColorPicker(cat, label) {
+				var cpDiv = document.createElement("span");
 				var newInput = document.createElement("input");
 				newInput.id = "color-" + cat + "-" + label;
 				newInput.type = "color";
-				newInput.defaultValue = categories[cat][label];
-				newInput.value = categories[cat][label];
-				//$("#color-" + cat + "-" + label).change(onCatColorChange);
-				newInput.onchange = onCatColorChange;
-				return newInput;
+				newInput.defaultValue = catLegend[cat][label]['color'];
+				newInput.value = catLegend[cat][label]['color'];
+				//newInput.onchange = onCatColorChange;
+				
+				var editLabelBtn = document.createElement("input");
+				editLabelBtn.id = "edit-" + cat + "-" + label;
+				editLabelBtn.type = "button";
+				editLabelBtn.value = "Edit Label"
+				//editLabelBtn.onclick = onEditLabelChange;
+				
+				var deleteLabelBtn = document.createElement("input");
+				deleteLabelBtn.id = "delete-" + cat + "-" + label;
+				deleteLabelBtn.type = "button";
+				deleteLabelBtn.value = "Delete Label"
+				//deleteLabelBtn.onclick = onDeleteLabelChange;
+				
+				cpDiv.appendChild(newInput);
+				cpDiv.appendChild(editLabelBtn);
+				cpDiv.appendChild(deleteLabelBtn);
+				
+				return cpDiv;
 			}
 			
 			function updateCategoryList() {
@@ -262,29 +307,28 @@
 				var h3Text = document.createTextNode('Categories:');
 				newH3.appendChild(h3Text);
 				newDiv.appendChild(newH3);
-				for (var catKey in categories) {
+				for (var catKey in catLegend) {
 					var newUl = document.createElement("ul");
 					var newStrong = document.createElement("strong");
 					newStrong.appendChild(document.createTextNode(catKey));
 					newDiv.appendChild(newStrong);
-					for (var labelKey in categories[catKey]) {
+					for (var labelKey in catLegend[catKey]) {
 						var newLi = document.createElement("li");
 						newLi.appendChild(document.createTextNode(labelKey));
 						var newInput = createColorPicker(catKey, labelKey);
 						newLi.appendChild(newInput);
 						newUl.appendChild(newLi);
-						// add change event to category color (do we need to destroy the existing events??, probably!!)
-						// or is this cleaned up when the object is destroyed? (is the object destroyed? - debug!)
-						//$("#color-"+catKey + "-"+labelKey).change(onCatColorChange);
 					}
 					newDiv.appendChild(newUl);
 				}
 				document.getElementById("categoryList").innerHTML = newDiv.innerHTML;
 				
 				// apply events with a redundant nested loop. only seems to work when part of dom. fix!!(remove loop)
-				for (var catKey in categories) {
-					for (var labelKey in categories[catKey]) {
-						$("#color-"+catKey + "-"+labelKey).change(onCatColorChange);
+				for (var catKey in catLegend) {
+					for (var labelKey in catLegend[catKey]) {
+						$("#color-" + catKey + "-" + labelKey).change(onCatColorChange);
+						$("#edit-" + catKey + "-" + labelKey).click(onEditLabelChange);
+						$("#delete-" + catKey + "-" + labelKey).click(onDeleteLabelChange);
 					}
 				}
 			}
@@ -301,7 +345,58 @@
 			
 			function cancelNewLabel() {
 				hideLabelPanel();
-			}		
+			}
+
+			// remove and cleanup references to cat and label
+			function removeLabel(cat, label) {
+				delete catLegend[cat][label]['color'];
+				
+				// remove all cells with cat and label (messy?)
+				for (var cellRef in catLegend[cat][label]["cellref"]) {			//change iteration method !!!
+					// what are you doing here ??, define some sort of structure !!!
+					var cellRefArr = catLegend[cat][label]["cellref"][cellRef].split("-");
+					var row = cellRefArr[0];
+					var column = cellRefArr[1];
+
+					delete cellCats[row][column]["cats"][cat];
+					
+					// update actual grid cell
+					var newContents = cellCats[row][column]["value"];
+					for (var catKey in cellCats[row][column]["cats"]) {
+						newContents += "," + cellCats[row][column]["cats"][catKey];
+					}
+					grid.updateCellContents(row, column, newContents);
+				}
+				
+				// remove from color legend cell reverse lookup
+				delete catLegend[cat][label];
+				
+				// referesh category elements
+				updateCategoryList();
+			}
+			
+			// remove and cleanup references to cat and label
+			function updateLabelName(cat, oldLabel, label) {	// should we allow for change of category also ??
+				// update color legend cell reverse lookup				
+				if (catLegend[cat][label] == null) {
+					//catLegend[cat][label] = {};
+					//catLegend[cat][label]["cellref"] = [];
+					catLegend[cat][label] = catLegend[cat][oldLabel];
+
+					console.log("Old color:"+catLegend[cat][oldLabel]['color']);
+					console.log("New color:"+catLegend[cat][label]['color']);
+					// remove old label
+					delete catLegend[cat][oldLabel];
+					
+					// referesh category elements
+					updateCategoryList();
+				} else {
+					// other label already exists , can't rename on label to another existing label !!
+					// throw exception or something !!!
+					// ERROR!!
+					console.log("stop it !");
+				}
+			}
 			
 			/**
              * This function changes the style of a particular cell
@@ -314,12 +409,16 @@
 				var label = document.getElementById("newLabelValue").value;
 				var color = document.getElementById("newColorValue").value;
 				
-				// update categories to color
-				if (categories[cat] == null) {
-					categories[cat] = [];
-					categories[cat][label] = color;
+				// update catLegend color
+				if (catLegend[cat] == null) {
+					catLegend[cat] = {};
+				}
+				
+				if (catLegend[cat][label] == null) {
+					catLegend[cat][label] = {};
+					catLegend[cat][label]['color'] = color;
 				} else {
-					categories[cat][label] = color;
+					catLegend[cat][label]['color'] = color;
 					// category and label already exist, just changing color,
 					// in this case cells which already have this label need their color updated also!!
 					updateCellColors(cat, label, color);
@@ -350,16 +449,12 @@
 					grid.updateCellContents(row,column, newContents);
 					
 					// update color legend cell reverse lookup
-					if (legendCellRef[cat] == null) {
-						legendCellRef[cat] = [];
-					}
-					
-					if (legendCellRef[cat][label] == null) {
-						legendCellRef[cat][label] = [];
-						legendCellRef[cat][label].push(row + "-" + column);
+					if (catLegend[cat][label]["cellref"] == null) {
+						catLegend[cat][label]["cellref"] = [];
+						catLegend[cat][label]["cellref"].push(row + "-" + column);
 					} else {
-						if (legendCellRef[cat][label].indexOf(row + "-" + column) == -1) {
-							legendCellRef[cat][label].push(row + "-" + column);
+						if (catLegend[cat][label]["cellref"].indexOf(row + "-" + column) == -1) {
+							catLegend[cat][label]["cellref"].push(row + "-" + column);
 						} else {
 							console.log("already there");
 						}
@@ -412,7 +507,7 @@
 				addEvent("cancelNewLabel", "click", cancelNewLabel);
 				addEvent("clearLastSelection", "click", removeHighlightedArea);
 				addEvent("clearAllSelection", "click", removeAllHighlightedCells);
-				
+
 				// initially disable selection of grid cells
 				disableGridSelection();
             }
@@ -427,6 +522,26 @@
 					
 				$("#addLabelButton").click(function() {
 					showLabelPanel();
+				});
+				
+				$("#editLabelDialog").dialog({
+					autoOpen: false,
+					resizable: false,
+					height:140,
+					modal: true,
+					buttons: {
+						"Save New Name": function() {
+							updateLabelName(tmpEditCat, tmpEditOldLabel, document.getElementById("editNewLabelValue").value);
+							delete tmpEdit;
+							delete tmpEditOldLabel;
+							$(this).dialog("close");
+						},
+						Cancel: function() {
+							delete tmpEdit;
+							delete tmpEditOldLabel;
+							$(this).dialog("close");
+						}
+					}
 				});
 			});
 			

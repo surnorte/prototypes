@@ -85,7 +85,7 @@ function Grid(containerID){
      * This function creates a new SlickGrid in the constructor specified container with
      * the set data using the setData method.
      */
-    this.fillUpGrid = function() {
+    this.fillUpGrid = function(cellWidth, cellHeight) {
 
         var columns = [];
 
@@ -93,7 +93,7 @@ function Grid(containerID){
             enableCellNavigation: true,
             enableColumnReorder: false,
             numberOfColumnsToFreeze: 1,
-			rowHeight: 60
+			rowHeight: cellHeight
         };
 
         // create column labels, starting with column for the row labels
@@ -111,7 +111,7 @@ function Grid(containerID){
                 id: k.toString(),
                 name: k.toString(),
                 field: k.toString(),
-                width: 140,
+                width: cellWidth,
 				cssClass: "editor-cell",
 				formatter: editorCellFormatter
             });
