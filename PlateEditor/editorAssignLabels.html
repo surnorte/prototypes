@@ -77,16 +77,9 @@
 					<p></p>
 				</div>
 			</div>
-			<hr/>
-			<h1> note these should appear as buttons/options beside each label</h1>
-			<div>Remove from Category:<input type="text" id="removeCatValue"/></div>
-			<div>Remove Label:<input type="text" id="removeLabelValue"/></div>
-			<button id="removeLabelButton" class="ui-state-default ui-corner-all">Remove Label</button>
-			<hr/>
-			<div>Edit from Category:<input type="text" id="editCatValue"/></div>
-			<div>Edit Label Name:<input type="text" id="editLabelValue"/></div>
-			<div>New Label Name:<input type="text" id="newLabelName"/></div>
-			<button id="editLabelButton" class="ui-state-default ui-corner-all">Edit Label Name</button>
+		</div>
+		<div id="editLabelDialog" title="New Label Name">
+			<input type="text" id="editNewLabelValue"/>
 		</div>
 		
 		
@@ -102,6 +95,10 @@
             var highlightKeyCounter = 0;
             var currentHighlightColor = "#D5E3E3";
 			var highlightedCoords = [];
+			
+			// tmp editlabel vars
+			var tmpEditOldLabel;
+			var tmpEditCat;
 
             /**
              * A function that creates a blank data set for initializing the grid example
@@ -237,6 +234,22 @@
 				updateCellColors(cat, label, this.value);	
             }
 			
+			function onEditLabelChange(){		// some issues here !! (when editing 1st label in cat, it actually changes 2nd !!)
+				var idArr = this.id.split("-");
+				tmpEditCat = idArr[1];
+				tmpEditOldLabel = idArr[2];
+				console.log("editLabel: "+ tmpEditCat + ";" + tmpEditOldLabel);
+				$("#editLabelDialog").dialog("open");
+            }
+			
+			function onDeleteLabelChange(){
+				var idArr = this.id.split("-");
+				var cat = idArr[1];
+				var label = idArr[2];
+				console.log("deleteLabel: "+ cat + ";" + label);
+				removeLabel(cat, label)
+            }
+			
 			function updateCellColors(cat, label, color) {
 				// update all cells with cat and label (messy?)
 				if (catLegend[cat] != undefined && catLegend[cat][label] != undefined) {
@@ -258,14 +271,31 @@
 			}
 			
 			function createColorPicker(cat, label) {
+				var cpDiv = document.createElement("span");
 				var newInput = document.createElement("input");
 				newInput.id = "color-" + cat + "-" + label;
 				newInput.type = "color";
 				newInput.defaultValue = catLegend[cat][label]['color'];
 				newInput.value = catLegend[cat][label]['color'];
-				//$("#color-" + cat + "-" + label).change(onCatColorChange);
-				newInput.onchange = onCatColorChange;
-				return newInput;
+				//newInput.onchange = onCatColorChange;
+				
+				var editLabelBtn = document.createElement("input");
+				editLabelBtn.id = "edit-" + cat + "-" + label;
+				editLabelBtn.type = "button";
+				editLabelBtn.value = "Edit Label"
+				//editLabelBtn.onclick = onEditLabelChange;
+				
+				var deleteLabelBtn = document.createElement("input");
+				deleteLabelBtn.id = "delete-" + cat + "-" + label;
+				deleteLabelBtn.type = "button";
+				deleteLabelBtn.value = "Delete Label"
+				//deleteLabelBtn.onclick = onDeleteLabelChange;
+				
+				cpDiv.appendChild(newInput);
+				cpDiv.appendChild(editLabelBtn);
+				cpDiv.appendChild(deleteLabelBtn);
+				
+				return cpDiv;
 			}
 			
 			function updateCategoryList() {
@@ -285,9 +315,6 @@
 						var newInput = createColorPicker(catKey, labelKey);
 						newLi.appendChild(newInput);
 						newUl.appendChild(newLi);
-						// add change event to category color (do we need to destroy the existing events??, probably!!)
-						// or is this cleaned up when the object is destroyed? (is the object destroyed? - debug!)
-						//$("#color-"+catKey + "-"+labelKey).change(onCatColorChange);
 					}
 					newDiv.appendChild(newUl);
 				}
@@ -296,7 +323,9 @@
 				// apply events with a redundant nested loop. only seems to work when part of dom. fix!!(remove loop)
 				for (var catKey in catLegend) {
 					for (var labelKey in catLegend[catKey]) {
-						$("#color-"+catKey + "-"+labelKey).change(onCatColorChange);
+						$("#color-" + catKey + "-" + labelKey).change(onCatColorChange);
+						$("#edit-" + catKey + "-" + labelKey).click(onEditLabelChange);
+						$("#delete-" + catKey + "-" + labelKey).click(onDeleteLabelChange);
 					}
 				}
 			}
@@ -314,14 +343,7 @@
 			function cancelNewLabel() {
 				hideLabelPanel();
 			}
-			
-			
-			function removeLabelHandler() {
-				var cat = document.getElementById("removeCatValue").value;
-				var label = document.getElementById("removeLabelValue").value;
-				removeLabel(cat, label);
-			}
-			
+
 			// remove and cleanup references to cat and label
 			function removeLabel(cat, label) {
 				delete catLegend[cat][label]['color'];
@@ -348,13 +370,6 @@
 				
 				// referesh category elements
 				updateCategoryList();
-			}
-			
-			function editLabelHandler() {
-				var cat = document.getElementById("editCatValue").value;
-				var oldLabel = document.getElementById("editLabelValue").value;
-				var label = document.getElementById("newLabelName").value;
-				updateLabelName(cat, oldLabel, label);
 			}
 			
 			// remove and cleanup references to cat and label
@@ -487,8 +502,6 @@
 				addEvent("cancelNewLabel", "click", cancelNewLabel);
 				addEvent("clearLastSelection", "click", removeHighlightedArea);
 				addEvent("clearAllSelection", "click", removeAllHighlightedCells);
-				addEvent("removeLabelButton", "click", removeLabelHandler);
-				addEvent("editLabelButton", "click", editLabelHandler);
 
 				// initially disable selection of grid cells
 				disableGridSelection();
@@ -504,6 +517,26 @@
 					
 				$("#addLabelButton").click(function() {
 					showLabelPanel();
+				});
+				
+				$("#editLabelDialog").dialog({
+					autoOpen: false,
+					resizable: false,
+					height:140,
+					modal: true,
+					buttons: {
+						"Save New Name": function() {
+							updateLabelName(tmpEditCat, tmpEditOldLabel, document.getElementById("editNewLabelValue").value);
+							delete tmpEdit;
+							delete tmpEditOldLabel;
+							$(this).dialog("close");
+						},
+						Cancel: function() {
+							delete tmpEdit;
+							delete tmpEditOldLabel;
+							$(this).dialog("close");
+						}
+					}
 				});
 			});
 			
