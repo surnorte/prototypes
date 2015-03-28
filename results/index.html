@@ -124,10 +124,10 @@ function loadRandomData(){
  */
 function colorGrid() {
   var valueStyles = {};
-  for (var row=1; row<=grid.rowsSize; row++) {
+  for (var row=0; row<grid.rowsSize; row++) {
     valueStyles[row] = {};
     for (var col=1; col<=grid.colsSize; col++) {
-      var value = grid.getDataPoint(row, col);
+      var value = grid.getDataPoint(row+1, col);
       valueStyles[row][col] = "q" + colorBuckets(value) + "-9";
       //console.log(row, col, value, colorBuckets(value));
     }
