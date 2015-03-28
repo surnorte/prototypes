@@ -66,6 +66,7 @@
 					</div>
 					
 					<div id="categoryList"/>
+					
 				</div>
 				<div id="tabs-3">
 					<h1>Plate Level Labels:</h1>
@@ -76,15 +77,26 @@
 					<p></p>
 				</div>
 			</div>
+			<hr/>
+			<h1> note these should appear as buttons/options beside each label</h1>
+			<div>Remove from Category:<input type="text" id="removeCatValue"/></div>
+			<div>Remove Label:<input type="text" id="removeLabelValue"/></div>
+			<button id="removeLabelButton" class="ui-state-default ui-corner-all">Remove Label</button>
+			<hr/>
+			<div>Edit from Category:<input type="text" id="editCatValue"/></div>
+			<div>Edit Label Name:<input type="text" id="editLabelValue"/></div>
+			<div>New Label Name:<input type="text" id="newLabelName"/></div>
+			<button id="editLabelButton" class="ui-state-default ui-corner-all">Edit Label Name</button>
 		</div>
+		
 		
         <script type="text/javascript">
             // constants
             var DIMENSION = 100;
             var data;
-			var categories = [];
-			var cellCats = [];
-			var legendCellRef = [];
+			var categories = {};	// note declaring as an object ???
+			var cellCats = {};
+			var legendCellRef = {};
             var grid;
             var currentHighlightKeys = [];
             var highlightKeyCounter = 0;
@@ -301,7 +313,75 @@
 			
 			function cancelNewLabel() {
 				hideLabelPanel();
-			}		
+			}
+			
+			
+			function removeLabelHandler() {
+				var cat = document.getElementById("removeCatValue").value;
+				var label = document.getElementById("removeLabelValue").value;
+				removeLabel(cat, label);
+			}
+			
+			// remove and cleanup references to cat and label
+			function removeLabel(cat, label) {
+				delete categories[cat][label];
+				
+				// remove all cells with cat and label (messy?)
+				for (var cellRef in legendCellRef[cat][label]) {			//change iteration method !!!
+					// what are you doing here ??, define some sort of structure !!!
+					var cellRefArr = legendCellRef[cat][label][cellRef].split("-");
+					var row = cellRefArr[0];
+					var column = cellRefArr[1];
+
+					delete cellCats[row][column]["cats"][cat];
+					
+					// update actual grid cell
+					var newContents = cellCats[row][column]["value"];
+					for (var catKey in cellCats[row][column]["cats"]) {
+						newContents += "," + cellCats[row][column]["cats"][catKey];
+					}
+					grid.updateCellContents(row, column, newContents);
+				}
+				
+				// remove from color legend cell reverse lookup
+				delete legendCellRef[cat][label];
+				
+				// referesh category elements
+				updateCategoryList();
+			}
+			
+			function editLabelHandler() {
+				var cat = document.getElementById("editCatValue").value;
+				var oldLabel = document.getElementById("editLabelValue").value;
+				var label = document.getElementById("newLabelName").value;
+				updateLabelName(cat, oldLabel, label);
+			}
+			
+			// remove and cleanup references to cat and label
+			function updateLabelName(cat, oldLabel, label) {	// should we allow for change of category also ??
+				// update color legend cell reverse lookup				
+				if (legendCellRef[cat][label] == null) {
+					legendCellRef[cat][label] = [];
+					legendCellRef[cat][label] = legendCellRef[cat][oldLabel];
+				
+					// remove oldLabel from color legend cell reverse lookup
+					delete legendCellRef[cat][oldLabel];
+					
+					// update categories array
+					// update categories to color		// perhaps MERGE 'categories' and 'cellCats' !!
+					categories[cat][label] = categories[cat][oldLabel];	// assuming it's there !!
+					// remove old label
+					delete categories[cat][oldLabel];
+					
+					// referesh category elements
+					updateCategoryList();
+				} else {
+					// other label already exists , can't rename on label to another existing label !!
+					// throw exception or something !!!
+					// ERROR!!
+					console.log("stop it !");
+				}
+			}
 			
 			/**
              * This function changes the style of a particular cell
@@ -412,7 +492,9 @@
 				addEvent("cancelNewLabel", "click", cancelNewLabel);
 				addEvent("clearLastSelection", "click", removeHighlightedArea);
 				addEvent("clearAllSelection", "click", removeAllHighlightedCells);
-				
+				addEvent("removeLabelButton", "click", removeLabelHandler);
+				addEvent("editLabelButton", "click", editLabelHandler);
+
 				// initially disable selection of grid cells
 				disableGridSelection();
             }
