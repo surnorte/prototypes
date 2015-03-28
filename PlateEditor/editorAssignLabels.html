@@ -94,9 +94,9 @@
             // constants
             var DIMENSION = 100;
             var data;
-			var categories = {};	// note declaring as an object ???
+			//var categories = {};	// note declaring as an object ???
 			var cellCats = {};
-			var legendCellRef = {};
+			var catLegend = {};
             var grid;
             var currentHighlightKeys = [];
             var highlightKeyCounter = 0;
@@ -239,10 +239,10 @@
 			
 			function updateCellColors(cat, label, color) {
 				// update all cells with cat and label (messy?)
-				if (legendCellRef[cat] != undefined) {
-					for (var cellRef in legendCellRef[cat][label]) {			//change iteration method !!!
+				if (catLegend[cat] != undefined && catLegend[cat][label] != undefined) {
+					for (var cellRef in catLegend[cat][label]["cellref"]) {			//change iteration method !!!
 						// what are you doing here ??, define some sort of structure !!!
-						var cellRefArr = legendCellRef[cat][label][cellRef].split("-");
+						var cellRefArr = catLegend[cat][label]["cellref"][cellRef].split("-");
 						var row = cellRefArr[0];
 						var column = cellRefArr[1];
 						cellCats[row][column]["cats"][cat] = color;
@@ -261,8 +261,8 @@
 				var newInput = document.createElement("input");
 				newInput.id = "color-" + cat + "-" + label;
 				newInput.type = "color";
-				newInput.defaultValue = categories[cat][label];
-				newInput.value = categories[cat][label];
+				newInput.defaultValue = catLegend[cat][label]['color'];
+				newInput.value = catLegend[cat][label]['color'];
 				//$("#color-" + cat + "-" + label).change(onCatColorChange);
 				newInput.onchange = onCatColorChange;
 				return newInput;
@@ -274,12 +274,12 @@
 				var h3Text = document.createTextNode('Categories:');
 				newH3.appendChild(h3Text);
 				newDiv.appendChild(newH3);
-				for (var catKey in categories) {
+				for (var catKey in catLegend) {
 					var newUl = document.createElement("ul");
 					var newStrong = document.createElement("strong");
 					newStrong.appendChild(document.createTextNode(catKey));
 					newDiv.appendChild(newStrong);
-					for (var labelKey in categories[catKey]) {
+					for (var labelKey in catLegend[catKey]) {
 						var newLi = document.createElement("li");
 						newLi.appendChild(document.createTextNode(labelKey));
 						var newInput = createColorPicker(catKey, labelKey);
@@ -294,8 +294,8 @@
 				document.getElementById("categoryList").innerHTML = newDiv.innerHTML;
 				
 				// apply events with a redundant nested loop. only seems to work when part of dom. fix!!(remove loop)
-				for (var catKey in categories) {
-					for (var labelKey in categories[catKey]) {
+				for (var catKey in catLegend) {
+					for (var labelKey in catLegend[catKey]) {
 						$("#color-"+catKey + "-"+labelKey).change(onCatColorChange);
 					}
 				}
@@ -324,12 +324,12 @@
 			
 			// remove and cleanup references to cat and label
 			function removeLabel(cat, label) {
-				delete categories[cat][label];
+				delete catLegend[cat][label]['color'];
 				
 				// remove all cells with cat and label (messy?)
-				for (var cellRef in legendCellRef[cat][label]) {			//change iteration method !!!
+				for (var cellRef in catLegend[cat][label]["cellref"]) {			//change iteration method !!!
 					// what are you doing here ??, define some sort of structure !!!
-					var cellRefArr = legendCellRef[cat][label][cellRef].split("-");
+					var cellRefArr = catLegend[cat][label]["cellref"][cellRef].split("-");
 					var row = cellRefArr[0];
 					var column = cellRefArr[1];
 
@@ -344,7 +344,7 @@
 				}
 				
 				// remove from color legend cell reverse lookup
-				delete legendCellRef[cat][label];
+				delete catLegend[cat][label];
 				
 				// referesh category elements
 				updateCategoryList();
@@ -360,18 +360,13 @@
 			// remove and cleanup references to cat and label
 			function updateLabelName(cat, oldLabel, label) {	// should we allow for change of category also ??
 				// update color legend cell reverse lookup				
-				if (legendCellRef[cat][label] == null) {
-					legendCellRef[cat][label] = [];
-					legendCellRef[cat][label] = legendCellRef[cat][oldLabel];
-				
-					// remove oldLabel from color legend cell reverse lookup
-					delete legendCellRef[cat][oldLabel];
-					
-					// update categories array
-					// update categories to color		// perhaps MERGE 'categories' and 'cellCats' !!
-					categories[cat][label] = categories[cat][oldLabel];	// assuming it's there !!
+				if (catLegend[cat][label] == null) {
+					catLegend[cat][label] = {};
+					catLegend[cat][label]["cellref"] = [];
+					catLegend[cat][label] = catLegend[cat][oldLabel];
+
 					// remove old label
-					delete categories[cat][oldLabel];
+					delete catLegend[cat][oldLabel];
 					
 					// referesh category elements
 					updateCategoryList();
@@ -394,12 +389,16 @@
 				var label = document.getElementById("newLabelValue").value;
 				var color = document.getElementById("newColorValue").value;
 				
-				// update categories to color
-				if (categories[cat] == null) {
-					categories[cat] = [];
-					categories[cat][label] = color;
+				// update catLegend color
+				if (catLegend[cat] == null) {
+					catLegend[cat] = {};
+				}
+				
+				if (catLegend[cat][label] == null) {
+					catLegend[cat][label] = {};
+					catLegend[cat][label]['color'] = color;
 				} else {
-					categories[cat][label] = color;
+					catLegend[cat][label]['color'] = color;
 					// category and label already exist, just changing color,
 					// in this case cells which already have this label need their color updated also!!
 					updateCellColors(cat, label, color);
@@ -430,16 +429,12 @@
 					grid.updateCellContents(row,column, newContents);
 					
 					// update color legend cell reverse lookup
-					if (legendCellRef[cat] == null) {
-						legendCellRef[cat] = [];
-					}
-					
-					if (legendCellRef[cat][label] == null) {
-						legendCellRef[cat][label] = [];
-						legendCellRef[cat][label].push(row + "-" + column);
+					if (catLegend[cat][label]["cellref"] == null) {
+						catLegend[cat][label]["cellref"] = [];
+						catLegend[cat][label]["cellref"].push(row + "-" + column);
 					} else {
-						if (legendCellRef[cat][label].indexOf(row + "-" + column) == -1) {
-							legendCellRef[cat][label].push(row + "-" + column);
+						if (catLegend[cat][label]["cellref"].indexOf(row + "-" + column) == -1) {
+							catLegend[cat][label]["cellref"].push(row + "-" + column);
 						} else {
 							console.log("already there");
 						}
