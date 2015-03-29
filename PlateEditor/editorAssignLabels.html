@@ -64,6 +64,20 @@
 							<div> <button id="clearLastSelection">Undo Last Selection</button><button id="clearAllSelection">Clear Selection</button></div>
 						</div>
 					</div>
+					<div class="toggler">
+						<div id="addDosePanel" class="ui-widget-content ui-corner-all">
+							<h4>New Dose Step:</h4>
+							<div>Top Dose:<input type="text" id="topDoseValue"/></div>
+							<div>Step Dilution:<input type="text" id="stepDilutionValue"/></div>
+							<div># of Replicates:<input type="text" id="replicatesValue" value="1"/></div>
+							<div>Top Dose Color:<input type="color" id="tDoseColorValue" value="#FFFF00"/></div>
+							<hr/>
+							<div><button id="addDoseStep">Apply Dose Step</button><button id="cancelDoseStep">Cancel</button></div>
+							<hr/>
+							<strong><-- Select Wells To Apply Labels To:</strong>
+							<div> <button id="clearLastSelectionD">Undo Last Selection</button><button id="clearAllSelectionD">Clear Selection</button></div>
+						</div>
+					</div>
 					
 					<div id="categoryList"/>
 					
@@ -346,6 +360,10 @@
 			function cancelNewLabel() {
 				hideLabelPanel();
 			}
+			
+			function cancelDoseStep() {
+				hideDosePanel();
+			}
 
 			// remove and cleanup references to cat and label
 			function removeLabel(cat, label) {
@@ -398,17 +416,53 @@
 				}
 			}
 			
-			/**
-             * This function changes the style of a particular cell
-             */
-            function addNewLabel() {
-				//var selCells = grid.getSelectedCells();
+			// code sample from http://stackoverflow.com/questions/5560248/programmatically-lighten-or-darken-a-hex-color-or-rgb-and-blend-colors
+			function shadeColor2(color, percent) {   
+				var f=parseInt(color.slice(1),16),t=percent<0?0:255,p=percent<0?percent*-1:percent,R=f>>16,G=f>>8&0x00FF,B=f&0x0000FF;
+				return "#"+(0x1000000+(Math.round((t-R)*p)+R)*0x10000+(Math.round((t-G)*p)+G)*0x100+(Math.round((t-B)*p)+B)).toString(16).slice(1);
+			}
+			
+			function shade(color, percent) {
+				if (color.length > 7 ) {
+					return shadeRGBColor(color,percent);
+				} else {
+					return shadeColor2(color,percent);
+				}
+			}
+
+			// SOME ISSUE OCCURS with dose step (Problem is with'.' in the name of label !!)
+			// replicates is realistically off by 1 probably as it should start at zero ??
+			function addDoseStep() {
 				var selCells = highlightedCoords;
 				console.log(selCells);
-				var cat = document.getElementById("newCatValue").value;
-				var label = document.getElementById("newLabelValue").value;
-				var color = document.getElementById("newColorValue").value;
+				var cat = "dosage";
 				
+				var topDose = document.getElementById("topDoseValue").value;
+				var dilution = document.getElementById("stepDilutionValue").value;
+				var replicates = document.getElementById("replicatesValue").value;
+				var topColor = document.getElementById("tDoseColorValue").value;
+				
+				var wellGroupLength = selCells.length;
+				var doseStepLength = wellGroupLength/replicates;		// need some validation !!
+				var currentDose = topDose;
+				var currentColor = topColor;
+				
+				for (var i = 0; i < wellGroupLength; i++) {
+					for (var j = 0; j < replicates; j++) {
+						console.log("i+j:" + (i+j));
+						createNewLabel(cat, currentDose, currentColor, [selCells[i+j]]);
+					}
+					i += (replicates-1);
+					currentColor = shade(currentColor, 0.2); // should we use 1/dilution instead ?? (might be too dramatic a difference !!
+					currentDose = currentDose / dilution;
+				}
+							
+				updateCategoryList();
+				// disable selection of grid cells
+				hideDosePanel();
+			}
+			
+			function createNewLabel(cat, label, color, applyToCells) {
 				// update catLegend color
 				if (catLegend[cat] == null) {
 					catLegend[cat] = {};
@@ -425,9 +479,9 @@
 				}
 				
 				// update selected grid cells with label
-				for (var cell in selCells) {
-					var row = selCells[cell][0];		// change iteration method !!!
-					var column = selCells[cell][1];
+				for (var cell in applyToCells) {
+					var row = applyToCells[cell][0];		// change iteration method !!!
+					var column = applyToCells[cell][1];
 					
 					// messy hack	--> maybe not so bad for efficiency actually ?
 					if (cellCats[row] == null) {
@@ -460,6 +514,20 @@
 						}
 					}
 				}
+			}
+			
+			/**
+             * This function changes the style of a particular cell
+             */
+            function addNewLabel() {
+				//var selCells = grid.getSelectedCells();
+				var selCells = highlightedCoords;
+				console.log(selCells);
+				var cat = document.getElementById("newCatValue").value;
+				var label = document.getElementById("newLabelValue").value;
+				var color = document.getElementById("newColorValue").value;
+				
+				createNewLabel(cat, label, color, selCells);
 				
 				updateCategoryList();
 				// disable selection of grid cells
@@ -507,6 +575,10 @@
 				addEvent("cancelNewLabel", "click", cancelNewLabel);
 				addEvent("clearLastSelection", "click", removeHighlightedArea);
 				addEvent("clearAllSelection", "click", removeAllHighlightedCells);
+				addEvent("addDoseStep", "click", addDoseStep);
+				addEvent("cancelDoseStep", "click", cancelDoseStep);
+				addEvent("clearLastSelectionD", "click", removeHighlightedArea);	// duplication !!
+				addEvent("clearAllSelectionD", "click", removeAllHighlightedCells);	// duplication !!
 
 				// initially disable selection of grid cells
 				disableGridSelection();
@@ -523,6 +595,13 @@
 				$("#addLabelButton").click(function() {
 					showLabelPanel();
 				});
+				
+				$("#addDosePanel").hide();
+					
+				$("#addDoseStepButton").click(function() {
+					showDosePanel();
+				});
+				
 				
 				$("#editLabelDialog").dialog({
 					autoOpen: false,
@@ -546,6 +625,7 @@
 			});
 			
 			function showLabelPanel() {
+				hideDosePanel();
 				enableGridSelection();
 				$("#addLabelPanel").show("drop", {direction: "right"}, 500 );
 			};
@@ -553,6 +633,17 @@
 			function hideLabelPanel() {
 				disableGridSelection();
 				$("#addLabelPanel").hide("drop", {direction: "right"}, 500 );
+			};
+			
+			function showDosePanel() {
+				hideLabelPanel();
+				enableGridSelection();
+				$("#addDosePanel").show("drop", {direction: "right"}, 500 );
+			};
+			
+			function hideDosePanel() {
+				disableGridSelection();
+				$("#addDosePanel").hide("drop", {direction: "right"}, 500 );
 			};
         </script>
     </body>
