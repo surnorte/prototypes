@@ -5,7 +5,7 @@
 function ImportData(){
     // TODO - implement this data structure
 
-    //this.experimetIdentifier = -1;
+    //this.experimentIdentifier = -1;
     //this.experimentLabels = {category -> label};
     //this.plateLabels = {plateId -> {category -> label}};
     //this.wellLabels = {plateId->{row->{column->{category->label}}}}
