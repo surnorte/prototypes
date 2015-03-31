@@ -430,8 +430,8 @@ function createParsingConfig(){
         parsingConfig.multiplePlatesPerFile = multiplePlatesPerFile;
         parsingConfig.multipleValuesPerWell = multipleValuesPerWell;
         parsingConfig.gridFormat = gridFormat;
-    }
-    parsingConfig = new ParsingConfig(
+    } else {
+        parsingConfig = new ParsingConfig(
             name,
             machine,
             description,
@@ -441,7 +441,9 @@ function createParsingConfig(){
             multiplePlatesPerFile,
             multipleValuesPerWell,
             gridFormat
-    );
+        );
+    }
+
     console.log(parsingConfig);
 }
 
