@@ -6,6 +6,9 @@
 var ROW_HEAD_BASE = 26;
 var STARTING_CHAR_CODE = 65;
 
+var DRAG_SCROLL_BORDER_THRESHOLD_PX = 30;
+var DRAG_SCROLL_AMOUNT = 20;
+
 /**
  * Grid Objects! The constructor takes the id of the container element in which the grid
  * will be displayed, this element is most likely a div and must have its dimensions
@@ -100,6 +103,8 @@ function Grid(containerID){
         var selectionModel = new Slick.CellSelectionModel();
         this.grid.setSelectionModel(selectionModel);
         selectionModel.onSelectedRangesChanged.subscribe(updateSelectedCells);
+
+        $("#" + this.container).mousemove(handleMousemove);
     };
 
     /**
@@ -380,6 +385,43 @@ function Grid(containerID){
                )
            }
         });
+    }
+
+    /**
+     * This private function handles mouse move events for scrolling the grid when
+     * cell selections are dragged to the edges of the viewport.
+     * @param e - the mouse move event
+     */
+    function handleMousemove(e){
+        var containerOffset = $(this).offset();
+        var jqueryContainer = $("#" + _self.container);
+        var jqueryViewport = $(".slick-viewport");
+        var distToLeftBorder = e.pageX - containerOffset.left;
+        var distToRightBorder = containerOffset.left + jqueryContainer.width() - e.pageX;
+        var distToTopBorder = e.pageY - containerOffset.top;
+        var distToBottomBorder = containerOffset.top + jqueryContainer.height() - e.pageY;
+
+        e = e || window.event;
+        var mouseButton = (typeof e.buttons != "undefined") ? e.buttons : e.which;
+
+        if (mouseButton == 1){
+
+            if (distToLeftBorder < DRAG_SCROLL_BORDER_THRESHOLD_PX) {
+                jqueryViewport.scrollLeft(jqueryViewport.scrollLeft() - DRAG_SCROLL_AMOUNT);
+            }
+
+            if (distToRightBorder < DRAG_SCROLL_BORDER_THRESHOLD_PX) {
+                jqueryViewport.scrollLeft(jqueryViewport.scrollLeft() + DRAG_SCROLL_AMOUNT);
+            }
+
+            if (distToTopBorder < DRAG_SCROLL_BORDER_THRESHOLD_PX) {
+                jqueryViewport.scrollTop(jqueryViewport.scrollTop() - DRAG_SCROLL_AMOUNT);
+            }
+
+            if (distToBottomBorder < DRAG_SCROLL_BORDER_THRESHOLD_PX) {
+                jqueryViewport.scrollTop(jqueryViewport.scrollTop() + DRAG_SCROLL_AMOUNT);
+            }
+        }
     }
 }
 

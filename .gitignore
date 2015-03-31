@@ -35,3 +35,6 @@
 # intellij idea files
 /parser_prototype_with_grid/.idea
 /parser_prototype_with_grid/*.iml
+/Grid/.idea
+/Grid/*.iml
+*.DS_Store
