@@ -120,8 +120,8 @@ function addFeature(name, grid, isParent, parent, typeOfFeature){
     newFeature.topLeftValue=grid.getDataPoint(grid.selectedStartRow, grid.selectedStartCol);
     newFeature.bottomRightCoords = [grid.selectedEndRow, grid.selectedEndCol];
     newFeature.bottomRightValue= grid.getDataPoint(grid.selectedEndRow, grid.selectedEndCol);
-    newFeature.relativeToLeftX = grid.selectedStartRow;
-    newFeature.relativeToLeftY = grid.selectedStartCol;
+    newFeature.relativeToLeftX = grid.selectedStartCol;
+    newFeature.relativeToLeftY = grid.selectedStartRow;
     newFeature.typeOfFeature = typeOfFeature;
     if (!isParent) {
         newFeature.typeOfFeature = typeOfFeature;
@@ -175,13 +175,15 @@ function makeFeature(){
 
     if (document.getElementById("wellLevel").checked){
         feature = addWellLevelFeature(category, grid);
+        parsingConfig.features.push(feature);
     } else if (document.getElementById("plateLevel").checked){
         feature = addPlateLevelFeature(category, grid);
+        parsingConfig.features.push(feature);
     } else if (document.getElementById("experimentLevel").checked){
         feature = addExperimentLevelFeature(category, grid);
+        parsingConfig.experimentFeatures.push(feature);
     }
 
-    parsingConfig.features.push(feature);
 
     // load feature selector
     var featureSelectElement = document.getElementById("featureList");
