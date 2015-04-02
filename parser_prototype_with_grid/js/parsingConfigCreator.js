@@ -30,6 +30,7 @@ var PARSING = 0;
 var PLATE = 1;
 var FEATURES = 2;
 
+
 var currentTopLeftCoord = null;
 var currentBottomRightCoord = null;
 
@@ -40,7 +41,6 @@ var colorPointer = 0;
 var colorKeyCounter = 0;
 var colorPicker = new ColorPicker();
 
-var biofeatures = [];
 var colsSize =-1;
 var rowsSize =-1;
 var numberOfFeatures =-1;
@@ -110,7 +110,17 @@ function searchPatternMatching(startPointRow, startPointCol,breakLabel,numOfRows
 }
 
 function applyFeatures(){
-    scanGrid(0, 1,parsingConfig.plate,0,0,true);
+    //scanGrid(0, 1,parsingConfig.plate,0,0,true);
+    var plates = parsingConfig.findPlates(1, examiner.rowsSize, grid);
+
+    var plateIDs = [];
+    for (var i=0; i<plates.length; i++){
+        plateIDs.push("plate " + i);
+    }
+    parsingConfig.highlightPlatesAndFeatures(plates, colorPicker, grid);
+    var data = parsingConfig.createImportData(plates, plateIDs, grid);
+    
+    console.log(data);
 }
 
 
@@ -128,7 +138,7 @@ function addFeature(name, grid, isParent, parent, typeOfFeature){
 
         // When it is one value set both top and bottom properties to
         // the same value.
-        if(newFeature.typeOfFeature=='unique'){
+        if(newFeature.typeOfFeature== PLATE_LEVEL){
             newFeature.bottomRightCoords=newFeature.topLeftCoords;
             newFeature.bottomRightValue=newFeature.topLeftValue;
         }
@@ -145,19 +155,22 @@ function addFeature(name, grid, isParent, parent, typeOfFeature){
 
 function addPlate(grid){
     parsingConfig.plate = addFeature("plate", grid, true, "plate" );
+    parsingConfig.plateInvariates.push([parsingConfig.plate.topLeftCoords[0],
+                                       parsingConfig.plate.topLeftCoords[1],
+                                       parsingConfig.plate.topLeftValue]);
     return parsingConfig.plate
 }
 
 function addExperimentLevelFeature(name, grid){
-    return addFeature(name, grid, true, null, "experimentFeature");
+    return addFeature(name, grid, true, null, EXPERIMENT_LEVEL);
 }
 
 function addPlateLevelFeature(name, grid){
-    return addFeature(name, grid, false, parsingConfig.plate, 'data');
+    return addFeature(name, grid, false, parsingConfig.plate, PLATE_LEVEL);
 }
 
 function addWellLevelFeature(name, grid){
-    return addFeature(name, grid, false, parsingConfig.plate,'unique');
+    return addFeature(name, grid, false, parsingConfig.plate, WELL_LEVEL);
 }
 
 function makePlate(){
@@ -175,15 +188,13 @@ function makeFeature(){
 
     if (document.getElementById("wellLevel").checked){
         feature = addWellLevelFeature(category, grid);
-        parsingConfig.features.push(feature);
     } else if (document.getElementById("plateLevel").checked){
         feature = addPlateLevelFeature(category, grid);
-        parsingConfig.features.push(feature);
     } else if (document.getElementById("experimentLevel").checked){
         feature = addExperimentLevelFeature(category, grid);
-        parsingConfig.experimentFeatures.push(feature);
     }
 
+    parsingConfig.features[feature.featureLabel] = feature;
 
     // load feature selector
     var featureSelectElement = document.getElementById("featureList");
@@ -281,12 +292,6 @@ function handleFileSelect(event) {
 
 
     colorPointer = 0;
-    biofeatures = [];
-    lines = [];
-    colsSize =-1;
-    rowsSize =-1;
-    numberOfFeatures =-1;
-    numberOfFeaturesCHILD =-1;
 
     fileNameDisplayElement.innerHTML = files[0].name;
     examiner.setFile(files[0]);

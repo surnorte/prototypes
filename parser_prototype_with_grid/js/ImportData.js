@@ -2,8 +2,11 @@
  * Created by zacharymartin on 3/24/15.
  */
 
-function ImportData(){
-    // TODO - implement this data structure
+function ImportData(experimentIdentifier){
+    this.experimentIdentifier = experimentIdentifier;
+    this.experimentFeatures = {};
+    this.plateFeatures = {};
+    this.wellFeatures = {};
 
     //this.experimentIdentifier = -1;
     //this.experimentLabels = {category -> label};
