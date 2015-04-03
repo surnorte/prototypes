@@ -131,8 +131,6 @@ function reloadLabelSelector(featureName){
 }
 
 
-// end of feature adding section
-
 function saveConfigToServer(){
 
     console.log(JSON.stringify(parsingConfig));
