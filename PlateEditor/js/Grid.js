@@ -6,6 +6,9 @@
 var ROW_HEAD_BASE = 26;
 var STARTING_CHAR_CODE = 65;
 
+var DRAG_SCROLL_BORDER_THRESHOLD_PX = 30;
+var DRAG_SCROLL_AMOUNT = 20;
+
 /**
  * Grid Objects! The constructor takes the id of the container element in which the grid
  * will be displayed, this element is most likely a div and must have its dimensions
@@ -26,13 +29,13 @@ function Grid(containerID){
     this.highlightedCellsByColor = {};
     this.highlightedCellsByKey = {};
     this.keyToColor = {};
-	
+
     // current selected cells fields
     this.selectedStartRow = null;
     this.selectedEndRow = null;
     this.selectedStartCol = null;
     this.selectedEndCol = null;
-	this.selectionEnabled = true;
+    this.selectionEnabled = true;
 
 
     /**
@@ -50,6 +53,11 @@ function Grid(containerID){
         this.matrix = values[0];
         this.rowsSize = values[1];
         this.colsSize = values[2];
+		
+		// reset highlight tracking
+        this.highlightedCellsByColor = {};
+        this.highlightedCellsByKey = {};
+        this.keyToColor = {};
     };
 	
 	function editorCellFormatter(row, cell, value, columnDef, dataContext) {
@@ -85,7 +93,7 @@ function Grid(containerID){
      * This function creates a new SlickGrid in the constructor specified container with
      * the set data using the setData method.
      */
-    this.fillUpGrid = function(cellWidth, cellHeight) {
+    this.fillUpGrid = function(cellWidth, cellHeight) {  //, cellResizable, cellCssClass, cellFormatter) {
 
         var columns = [];
 
@@ -102,7 +110,7 @@ function Grid(containerID){
             name: "0",
             field: "0",
             width: 30,
-            resizable: false,
+            resizable: false,	// cellResizable,
             selectable: false,
             focusable: false
         });
@@ -112,8 +120,8 @@ function Grid(containerID){
                 name: k.toString(),
                 field: k.toString(),
                 width: cellWidth,
-				cssClass: "editor-cell",
-				formatter: editorCellFormatter
+				cssClass: "editor-cell", // cellCssClass, 
+				formatter: editorCellFormatter // cellFormatter
             });
         }
 
@@ -127,6 +135,8 @@ function Grid(containerID){
         var selectionModel = new Slick.CellSelectionModel();
         this.grid.setSelectionModel(selectionModel);
         selectionModel.onSelectedRangesChanged.subscribe(updateSelectedCells);
+		
+		$("#" + this.container).mousemove(handleMousemove);
     };
 
     /**
@@ -193,7 +203,7 @@ function Grid(containerID){
 
         var changes = {};
         for (var i=0; i<coordinates.length; i++){
-            var row = coordinates[i][0];
+            var row = coordinates[i][0] - 1;
             var column = coordinates[i][1];
 
             if(!changes[row]){
@@ -239,17 +249,19 @@ function Grid(containerID){
         this.grid.removeCellCssStyles(key);
 		
 		cellsToRemoveColor = this.highlightedCellsByKey[key];
-        colorToRemove = this.keyToColor[key];
+		if (cellsToRemoveColor) {
+			colorToRemove = this.keyToColor[key];
 
-        for(var i=0; i<cellsToRemoveColor.length; i++){
-            var index = Grid.coordinateArrayIndexOf(
-                this.highlightedCellsByColor[colorToRemove],
-                cellsToRemoveColor[i]);
-            this.highlightedCellsByColor[colorToRemove].splice(index,1);
-        }
+			for(var i=0; i<cellsToRemoveColor.length; i++){
+				var index = Grid.coordinateArrayIndexOf(
+					this.highlightedCellsByColor[colorToRemove],
+					cellsToRemoveColor[i]);
+				this.highlightedCellsByColor[colorToRemove].splice(index,1);
+			}
 
-        this.highlightedCellsByKey[key] = null;
-        this.keyToColor[key] = null;
+			this.highlightedCellsByKey[key] = null;
+			this.keyToColor[key] = null;
+		}
     };
 
 	/**
@@ -350,7 +362,8 @@ function Grid(containerID){
      *      endRow - is the row number of the lower right cell bounding the selected cells
      *      endCol - is the column number of the lower right cell bounding the selected
      *          cells
-     * @param callBack - a function to be
+     * @param callBack - a function to be called in the event of a change of selected
+     *              cells, with the parameters as listed above
      */
     this.registerSelectedCellCallBack = function(callBack){
         this.selectedCellsCallBacks.push(callBack);
@@ -411,14 +424,51 @@ function Grid(containerID){
 			
 			_self.selectedCellsCallBacks.forEach(function(element){
 			   if (data[0].toCell != 0 && data[0].fromCell != 0){
-				   element(data[0].fromRow,
-					   data[0].fromCell,
-					   data[0].toRow,
-					   data[0].toCell
+               element(_self.selectedStartRow,
+                       _self.selectedStartCol,
+                       _self.selectedEndRow,
+                       _self.selectedEndCol
 				   )
 			   }
 			});
 		}
+	}
+		
+	/**
+     * This private function handles mouse move events for scrolling the grid when
+     * cell selections are dragged to the edges of the viewport.
+     * @param e - the mouse move event
+     */
+    function handleMousemove(e){
+        var containerOffset = $(this).offset();
+        var jqueryContainer = $("#" + _self.container);
+        var jqueryViewport = $(".slick-viewport");
+        var distToLeftBorder = e.pageX - containerOffset.left;
+        var distToRightBorder = containerOffset.left + jqueryContainer.width() - e.pageX;
+        var distToTopBorder = e.pageY - containerOffset.top;
+        var distToBottomBorder = containerOffset.top + jqueryContainer.height() - e.pageY;
+
+        e = e || window.event;
+        var mouseButton = (typeof e.buttons != "undefined") ? e.buttons : e.which;
+
+        if (mouseButton == 1){
+
+            if (distToLeftBorder < DRAG_SCROLL_BORDER_THRESHOLD_PX) {
+                jqueryViewport.scrollLeft(jqueryViewport.scrollLeft() - DRAG_SCROLL_AMOUNT);
+            }
+
+            if (distToRightBorder < DRAG_SCROLL_BORDER_THRESHOLD_PX) {
+                jqueryViewport.scrollLeft(jqueryViewport.scrollLeft() + DRAG_SCROLL_AMOUNT);
+            }
+
+            if (distToTopBorder < DRAG_SCROLL_BORDER_THRESHOLD_PX) {
+                jqueryViewport.scrollTop(jqueryViewport.scrollTop() - DRAG_SCROLL_AMOUNT);
+            }
+
+            if (distToBottomBorder < DRAG_SCROLL_BORDER_THRESHOLD_PX) {
+                jqueryViewport.scrollTop(jqueryViewport.scrollTop() + DRAG_SCROLL_AMOUNT);
+            }
+        }
     }
 }
 
@@ -471,6 +521,25 @@ Grid.getRowNumber = function(label) {
     }
 
     return number;
+};
+
+Grid.getCellCoordinates = function(label){
+    label.trim();
+    var indexOfFirstNumericChar = -1;
+
+    // first find the index of the first numeric value
+    for (var i=0; i<label.length; i++){
+        if (isFinite(label.charAt(i))){
+            indexOfFirstNumericChar = i;
+            break;
+        }
+    }
+
+    var row = label.substring(0, indexOfFirstNumericChar);
+     row = Grid.getRowNumber(row);
+    var col = parseInt(label.substring(indexOfFirstNumericChar));
+
+    return [row, col];
 };
 
 
