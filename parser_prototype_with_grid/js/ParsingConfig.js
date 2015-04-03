@@ -1,7 +1,7 @@
 /**
  * Created by zacharymartin on 3/22/15.
  */
-
+var PLATE = "plate";
 var WELL_LEVEL = "wellLevel";
 var PLATE_LEVEL = "plateLevel";
 var EXPERIMENT_LEVEL = "experimentLevel";
@@ -50,6 +50,20 @@ function ParsingConfig(name,
     this.multiplePlatesPerFile = multiplePlatesPerFile;
     this.multipleValuesPerWell = multipleValuesPerWell;
     this.gridFormat = gridFormat;
+
+
+    function BioFeature(feaLabel){
+        this.featureLabel = feaLabel;
+        this.topLeftCoords = null;
+        this.bottomRightCoords = null;
+        this.topLeftValue = null;
+        this.relativeToLeftX= null;
+        this.relativeToLeftY= null;
+        this.color = null;
+        this.typeOfFeature = null;  // PLATE, WELL_LEVEL, PLATE_LEVEL, EXPERIMENT_LEVEL
+
+    }
+
 
     this.isPlateStartRow = function(row, grid){
         for(var i=0; i<this.plateInvariates.length; i++){
@@ -172,6 +186,71 @@ function ParsingConfig(name,
         return coords;
     };
 
+    this.getFeatureValuesDescriptors = function(featureName, plates, grid){
+        var result = [];
+        var featureCoords = this.getFeatureCoords(featureName, plates);
+        var feature = this.features[featureName];
+        var lastPlate = -1;
+        var wellCounter = 0;
+
+
+        for (var i=0; i<featureCoords.length; i++){
+            var currentCoordinates = featureCoords[i];
+            var row = currentCoordinates[0];
+            var col = currentCoordinates[1];
+            var rowLetter = Grid.getRowLabel(row);
+            var cell = rowLetter + col;
+            var value = grid.getDataPoint(row, col);
+            var plate;
+            var descriptor;
+
+            if (feature.typeOfFeature != EXPERIMENT_LEVEL) {
+                for (var j=0; j<plates.length; j++){
+                    if (ParsingConfig.cellIsContainedInRange([row, col], plates[j])){
+                        plate = j;
+                        break;
+                    }
+                }
+
+                if (lastPlate != plate) {
+                    lastPlate = plate;
+                    wellCounter = 0;
+                }
+            }
+
+            if (feature.typeOfFeature == WELL_LEVEL){
+                var numberOfWellsOnAPlate
+                    = ParsingConfig.getNumberOfWellsFromFeatureBounds(
+                                                            feature.topLeftCoords[0],
+                                                            feature.topLeftCoords[1],
+                                                            feature.bottomRightCoords[0],
+                                                            feature.bottomRightCoords[1]);
+                var plateCoords = ParsingConfig.wellNumberToPlateCoords(wellCounter,
+                                                                    numberOfWellsOnAPlate,
+                                                                    2,
+                                                                    3);
+                var plateRow = Grid.getRowLabel(plateCoords[0] + 1);
+                var plateWellIdentifier = plateRow + (plateCoords[1] + 1);
+
+                descriptor = "plate: " + (plate + 1) + ", well: " + plateWellIdentifier
+                                + ", value: " + value;
+
+                wellCounter++;
+            } else if (feature.typeOfFeature == PLATE_LEVEL) {
+                descriptor = "plate: " + (plate + 1) + ", value: " + value;
+            } else if (feature.typeOfFeature == EXPERIMENT_LEVEL){
+                descriptor = "value: " + value;
+            }
+
+            result.push({
+                descriptor: descriptor,
+                cell: cell
+            });
+        }
+
+        return result;
+    };
+
     this.highlightPlatesAndFeatures = function(plates, colorPicker, grid){
         var coordsToHighlight = [];
         var colorKeys = [];
@@ -179,43 +258,57 @@ function ParsingConfig(name,
 
         // first highlight plates
         for (var plateIndex=0; plateIndex<plates.length; plateIndex++){
-            var plateRange = plates[plateIndex];
-            var startRow = plateRange[0];
-            var startCol = plateRange[1];
-            var endRow = plateRange[2];
-            var endCol = plateRange[3];
-            colorKey = colorPicker.getDistinctColorKey();
+            colorKey = this.highlightPlate(plateIndex, plates, colorPicker, grid);
             colorKeys.push(colorKey);
-
-            coordsToHighlight = ParsingConfig.getCoordsInARange(startRow,
-                                                                startCol,
-                                                                endRow,
-                                                                endCol);
-
-            grid.setCellColors(coordsToHighlight,
-                              colorPicker.getColorByIndex(this.plate.color),
-                              colorKey);
         }
 
         // next highlight features
 
         for(var featureName in this.features){
-            var feature = this.features[featureName];
-            colorKey = colorPicker.getDistinctColorKey();
+            colorKey = this.highlightFeature(featureName, plates, colorPicker, grid);
             colorKeys.push(colorKey);
-
-            coordsToHighlight = this.getFeatureCoords(featureName, plates);
-
-            grid.setCellColors(coordsToHighlight,
-                               colorPicker.getColorByIndex(feature.color),
-                               colorKey);
         }
 
-        return colorKey
+        return colorKeys
+    };
+
+    this.highlightPlate = function(plateIndex, plates, colorPicker, grid){
+        var colorKey;
+
+        var plateRange = plates[plateIndex];
+        var startRow = plateRange[0];
+        var startCol = plateRange[1];
+        var endRow = plateRange[2];
+        var endCol = plateRange[3];
+        colorKey = colorPicker.getDistinctColorKey();
+
+        var coordsToHighlight = ParsingConfig.getCoordsInARange(startRow,
+            startCol,
+            endRow,
+            endCol);
+
+        grid.setCellColors(coordsToHighlight,
+            colorPicker.getColorByIndex(this.plate.color),
+            colorKey);
+
+        return colorKey;
+    };
+
+    this.highlightFeature = function(featureName, plates, colorPicker, grid){
+        var feature = this.features[featureName];
+        var colorKey = colorPicker.getDistinctColorKey();
+
+        var coordsToHighlight = this.getFeatureCoords(featureName, plates);
+
+        grid.setCellColors(coordsToHighlight,
+            colorPicker.getColorByIndex(feature.color),
+            colorKey);
+
+        return colorKey;
     };
 
 
-    this.createImportData = function(plates, plateIDs, grid){
+    this.createImportData = function(plates, grid){
         var importData = new ImportData("test identifier");
 
         for (var featureName in this.features){
@@ -227,10 +320,12 @@ function ParsingConfig(name,
 
                 for (plate = 0; plate < wellFeatureCoords.length; plate++){
                     var plateCoords = wellFeatureCoords[plate];
-                    var plateID = plateIDs[plate];
 
-                    if (!importData.wellFeatures[plateID]){
-                        importData.wellFeatures[plateID] = {};
+                    if (!importData.plates[plate]){
+                        importData.plates[plate] = {
+                            labels : [],
+                            rows: []
+                        };
                     }
 
                     for (var i=0; i<plateCoords.length; i++){
@@ -240,28 +335,38 @@ function ParsingConfig(name,
                         var plateCoordinates = ParsingConfig.wellNumberToPlateCoords(i, plateCoords.length, 2, 3);
                         var plateRow = plateCoordinates[0];
                         var plateColumn = plateCoordinates[1];
+
                         var value = grid.getDataPoint(gridRow, gridColumn);
 
-                        if (!importData.wellFeatures[plateID][plateRow]){
-                            importData.wellFeatures[plateID][plateRow] = {};
+                        if (!importData.plates[plate].rows[plateRow]){
+                            importData.plates[plate].rows[plateRow] = {
+                                columns: []
+                            };
                         }
 
-                        if (!importData.wellFeatures[plateID][plateRow][plateColumn]){
-                            importData.wellFeatures[plateID][plateRow][plateColumn] = {};
+                        if (!importData.plates[plate].rows[plateRow].columns[plateColumn]){
+                            importData.plates[plate].rows[plateRow].columns[plateColumn] = {
+                                labels: []
+                            };
                         }
 
-                        importData.wellFeatures[plateID][plateRow][plateColumn][category]
-                            = value;
+                        importData.plates[plate].rows[plateRow].columns[plateColumn].labels.push({
+                            key: category,
+                            value: value
+                        });
                     }
                 }
             } else if (feature.typeOfFeature == PLATE_LEVEL) {
                 var plateFeatureCoords = this.findPlateLevelFeatureCoords(featureName,plates);
 
                 for (plate = 0; plate < plateFeatureCoords.length; plate++){
-                    var plateID = plateIDs[plate];
 
-                    if (!importData.plateFeatures[plateID]){
-                        importData.plateFeatures[plateID] = {};
+
+                    if (!importData.plates[plate]){
+                        importData.plates[plate] = {
+                            labels : [],
+                            rows: []
+                        };
                     }
 
                     var gridCoordinates = plateFeatureCoords[plate];
@@ -270,7 +375,10 @@ function ParsingConfig(name,
                     var value = grid.getDataPoint(gridRow, gridColumn);
 
 
-                    importData.plateFeatures[plateID][category] = value;
+                    importData.plates[plate].labels.push({
+                        key: category,
+                        value: value
+                    });
                 }
             } else if (feature.typeOfFeature == EXPERIMENT_LEVEL){
                 var gridCoordinates = this.findExperimentLevelFeatureCoords(featureName);
@@ -278,14 +386,146 @@ function ParsingConfig(name,
                 var gridColumn = gridCoordinates[1];
                 var value = grid.getDataPoint(gridRow, gridColumn);
 
-                importData.experimentFeatures[category] = value;
+                importData.experimentFeatures.labels.push({
+                    key: category,
+                    value: value
+                });
             }
 
 
         }
 
         return importData;
+    };
+
+    this.applyFeatures = function(startRow, endRow, grid){
+        var plates = this.findPlates(startRow, endRow, grid);
+
+        var plateIDs = [];
+        for (var i=0; i<plates.length; i++){
+            plateIDs.push("plate " + i);
+        }
+        this.highlightPlatesAndFeatures(plates, colorPicker, grid);
+        var data = this.createImportData(plates, grid);
+
+        console.log(data);
+    };
+
+
+    this.addFeature = function(name, grid, isParent, parent, typeOfFeature){
+        var newFeature = new BioFeature(name);
+        newFeature.topLeftCoords= [grid.selectedStartRow, grid.selectedStartCol];
+        newFeature.topLeftValue=grid.getDataPoint(grid.selectedStartRow, grid.selectedStartCol);
+        newFeature.bottomRightCoords = [grid.selectedEndRow, grid.selectedEndCol];
+        newFeature.relativeToLeftX = grid.selectedStartCol;
+        newFeature.relativeToLeftY = grid.selectedStartRow;
+        newFeature.typeOfFeature = typeOfFeature;
+        if (!isParent) {
+            newFeature.typeOfFeature = typeOfFeature;
+
+            // When it is one value set both top and bottom properties to
+            // the same value.
+            if(newFeature.typeOfFeature== PLATE_LEVEL
+                || newFeature.typeOfFeature == EXPERIMENT_LEVEL){
+                newFeature.bottomRightCoords=newFeature.topLeftCoords;
+            }
+            newFeature.relativeToLeftX = newFeature.topLeftCoords[1] - parent.topLeftCoords[1];
+            newFeature.relativeToLeftY = newFeature.topLeftCoords[0] - parent.topLeftCoords[0];
+            newFeature.importData = true;
+        }
+        newFeature.color=colorPointer;
+        colorPointer++;
+
+        console.log(newFeature);
+        return newFeature;
+    };
+
+    this.addPlate = function(grid){
+        this.plate = this.addFeature("plate", grid, true, null, PLATE);
+        this.plateInvariates.push([this.plate.topLeftCoords[0],
+                                   this.plate.topLeftCoords[1],
+                                   this.plate.topLeftValue]);
+        return this.plate
+    };
+
+    this.addExperimentLevelFeature = function(name, grid){
+        return this.addFeature(name, grid, true, null, EXPERIMENT_LEVEL);
+    };
+
+    this.addPlateLevelFeature = function(name, grid){
+        return this.addFeature(name, grid, false, this.plate, PLATE_LEVEL);
+    };
+
+    this.addWellLevelFeature = function(name, grid){
+        return this.addFeature(name, grid, false, this.plate, WELL_LEVEL);
+    };
+
+    /**
+     * This function might be useful for more in depth pattern matching
+     */
+    function searchForPlateInvariates(){
+        var valueToLookFor;
+        var timesFound;
+        var possibleInvariateCoords = [];
+        var threshold
+            = Math.floor(rowsSize/((currentBottomRightCoord[0] - currentTopLeftCoord[0])*2));
+
+        for(var row=currentTopLeftCoord[0]; row<=currentBottomRightCoord[0]; row++){
+            for(var col=currentTopLeftCoord[1]; col<=currentBottomRightCoord[1]; col++){
+                valueToLookFor = grid.getDataPoint(row, col).trim();
+                if (valueToLookFor){
+                    timesFound = 0;
+                    for(var obsRow = currentBottomRightCoord[0]+1; obsRow<=rowsSize; obsRow++){
+                        var currentValue = grid.getDataPoint(obsRow, col);
+                        if (currentValue && currentValue.trim() == valueToLookFor){
+                            timesFound++;
+                            if (timesFound >= threshold) {
+
+                                possibleInvariateCoords.push([row,col]);
+                                break;
+                            }
+                        }
+
+                    }
+
+
+                }
+            }
+        }
+
+        var invariatesKey = colorPicker.getDistinctColorKey();
+        grid.setCellColors(possibleInvariateCoords, "#a00", invariatesKey);
+
+        // load invariate cell selector
+        var invariateSelectElement = document.getElementById("invariateSelect");
+        for (var i=0; i<possibleInvariateCoords.length; i++){
+            var cellRow = possibleInvariateCoords[i][0] + 1;
+            var cellCol = possibleInvariateCoords[i][1];
+            var cellValue = grid.getDataPoint(cellRow, cellCol);
+            var optionValue = cellRow+":"+ cellCol;
+
+            var option = document.createElement("option");
+            option.setAttribute("value", optionValue);
+            option.innerHTML = cellValue + " : " + Grid.getRowLabel(cellRow) + cellCol;
+            invariateSelectElement.appendChild(option);
+        }
     }
+
+    this.getJSONString = function(){
+        var JSONObject = {};
+
+        JSONObject["name"] = this.name;
+        JSONObject["machineName"] = this.machineName;
+        JSONObject["description"] = this.description;
+        JSONObject["delimiter"] = this.delimiter;
+        JSONObject["plate"] = this.plate;
+        JSONObject["plateInvariates"] = this.plateInvariates;
+        JSONObject["features"] = this.features;
+
+        console.log("JSONObject = " + JSON.stringify(JSONObject));
+    }
+
+
 }
 
 ParsingConfig.wellNumberToPlateCoords = function(index, numberOfWells, rowProportion, colProportion){
@@ -307,4 +547,27 @@ ParsingConfig.getCoordsInARange = function(startRow, startCol, endRow, endCol){
         }
     }
     return coordinates;
+};
+
+ParsingConfig.getNumberOfWellsFromFeatureBounds = function(startRow,
+                                                           startCol,
+                                                           endRow,
+                                                           endCol){
+    var width = endCol - startCol + 1;
+    var height = endRow - startRow + 1;
+
+    return width * height;
+};
+
+ParsingConfig.cellIsContainedInRange = function(cellCoords, range){
+    var rangeStartRow = range[0];
+    var rangeStartCol = range[1];
+    var rangeEndRow = range[2];
+    var rangeEndCol = range[3];
+
+    var cellRow = cellCoords[0];
+    var cellCol = cellCoords[1];
+
+    return (cellRow >= rangeStartRow && cellRow <= rangeEndRow
+        && cellCol >= rangeStartCol && cellCol <= rangeEndCol);
 };

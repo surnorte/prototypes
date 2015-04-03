@@ -21,7 +21,7 @@ function BioFeature(feaLabel){
     this.relativeToLeftX=-1;
     this.relativeToLeftY=-1;
     this.color='';
-    this.typeOfFeature=null;  // Plate, Data, Range, Unique
+    this.typeOfFeature=null;  // Plate, , Range, Unique
 
 }
 
@@ -58,127 +58,13 @@ examiner.registerAsLoadListener(function(examiner){
     rowsSize = examiner.rowsSize;
 });
 
-
-function scanGrid(fromLimit, toLimit, bios, parentRelCol, parentRow ,isparent){
-
-    for(var i = fromLimit; i < toLimit; i++){
-
-        var currentFeature = isparent?bios:bios[i];
-        var breakLabel = currentFeature.topLeftValue.trim();
-        var startPoint = currentFeature.topLeftCoords;
-        var endPoint = currentFeature.bottomRightCoords;
-        var relativeCol = currentFeature.relativeToLeftX;
-        var relativeRow= currentFeature.relativeToLeftY;
-        var numOfRows = endPoint[0] - startPoint[0];
-        var numOfCols = endPoint[1] - startPoint[1];
-        var colorFeature = colorPicker.getColorByIndex(currentFeature.color);
-
-        if (isparent) {
-            searchPatternMatching(startPoint[0], startPoint[1], breakLabel, numOfRows, numOfCols, relativeCol, colorFeature);
-        }else{
-            traverseRowsCols(numOfRows,numOfCols,(relativeCol+parentRelCol),(relativeRow+parentRow),colorFeature);
-        }
-    }
-}
-
-
-function traverseRowsCols(numOfRows, numOfCols,relativeCol, parentRow , colorFeature){
-
-    var coordsToHighlight = [];
-    var rowIndex;
-    for(rowIndex = 0; rowIndex<=numOfRows; rowIndex++) {
-        for(var colIdx = 0; colIdx<=numOfCols; colIdx++) {
-            coordsToHighlight.push([(rowIndex + parentRow),(colIdx + relativeCol)]);
-        }
-    }
-    grid.setCellColors(coordsToHighlight, colorFeature, colorPicker.getDistinctColorKey());
-
-    return rowIndex;
-}
-
-function searchPatternMatching(startPointRow, startPointCol,breakLabel,numOfRows,numOfCols,relativeCol,colorFeature){
-
-    for(var parentRow = startPointRow; parentRow<rowsSize; parentRow++){
-        var newLabel = grid.getDataPoint(parentRow,startPointCol).trim();
-
-        if(breakLabel == newLabel){
-            var rowIdx = traverseRowsCols(numOfRows, numOfCols,relativeCol, parentRow , colorFeature);
-            scanGrid(0, parsingConfig.features.length,parsingConfig.features,relativeCol,parentRow,false);
-            parentRow=parentRow+rowIdx-1;
-        }
-    }
-}
-
 function applyFeatures(){
-    //scanGrid(0, 1,parsingConfig.plate,0,0,true);
-    var plates = parsingConfig.findPlates(1, examiner.rowsSize, grid);
-
-    var plateIDs = [];
-    for (var i=0; i<plates.length; i++){
-        plateIDs.push("plate " + i);
-    }
-    parsingConfig.highlightPlatesAndFeatures(plates, colorPicker, grid);
-    var data = parsingConfig.createImportData(plates, plateIDs, grid);
-    
-    console.log(data);
-}
-
-
-function addFeature(name, grid, isParent, parent, typeOfFeature){
-    var newFeature = new BioFeature(name);
-    newFeature.topLeftCoords= [grid.selectedStartRow, grid.selectedStartCol];
-    newFeature.topLeftValue=grid.getDataPoint(grid.selectedStartRow, grid.selectedStartCol);
-    newFeature.bottomRightCoords = [grid.selectedEndRow, grid.selectedEndCol];
-    newFeature.bottomRightValue= grid.getDataPoint(grid.selectedEndRow, grid.selectedEndCol);
-    newFeature.relativeToLeftX = grid.selectedStartCol;
-    newFeature.relativeToLeftY = grid.selectedStartRow;
-    newFeature.typeOfFeature = typeOfFeature;
-    if (!isParent) {
-        newFeature.typeOfFeature = typeOfFeature;
-
-        // When it is one value set both top and bottom properties to
-        // the same value.
-        if(newFeature.typeOfFeature== PLATE_LEVEL){
-            newFeature.bottomRightCoords=newFeature.topLeftCoords;
-            newFeature.bottomRightValue=newFeature.topLeftValue;
-        }
-        newFeature.relativeToLeftX = newFeature.topLeftCoords[1] - parent.topLeftCoords[1];
-        newFeature.relativeToLeftY = newFeature.topLeftCoords[0] - parent.topLeftCoords[0];
-        newFeature.importData = true;
-    }
-    newFeature.color=colorPointer;
-    colorPointer++;
-
-    console.log(newFeature);
-    return newFeature;
-}
-
-function addPlate(grid){
-    parsingConfig.plate = addFeature("plate", grid, true, "plate" );
-    parsingConfig.plateInvariates.push([parsingConfig.plate.topLeftCoords[0],
-                                       parsingConfig.plate.topLeftCoords[1],
-                                       parsingConfig.plate.topLeftValue]);
-    return parsingConfig.plate
-}
-
-function addExperimentLevelFeature(name, grid){
-    return addFeature(name, grid, true, null, EXPERIMENT_LEVEL);
-}
-
-function addPlateLevelFeature(name, grid){
-    return addFeature(name, grid, false, parsingConfig.plate, PLATE_LEVEL);
-}
-
-function addWellLevelFeature(name, grid){
-    return addFeature(name, grid, false, parsingConfig.plate, WELL_LEVEL);
+    parsingConfig.applyFeatures(1, examiner.rowsSize, grid);
+    parsingConfig.getJSONString();
 }
 
 function makePlate(){
-    //biofeatures.push(addPlate(grid));
-    addPlate(grid);
-
-    // legacy compliance
-    $('#select-to').append("<option value='"+(numberOfFeatures+1)+"'>"+"plate"+"</option>");
+    parsingConfig.addPlate(grid);
 }
 
 function makeFeature(){
@@ -187,28 +73,61 @@ function makeFeature(){
 
 
     if (document.getElementById("wellLevel").checked){
-        feature = addWellLevelFeature(category, grid);
+        feature = parsingConfig.addWellLevelFeature(category, grid);
     } else if (document.getElementById("plateLevel").checked){
-        feature = addPlateLevelFeature(category, grid);
+        feature = parsingConfig.addPlateLevelFeature(category, grid);
     } else if (document.getElementById("experimentLevel").checked){
-        feature = addExperimentLevelFeature(category, grid);
+        feature = parsingConfig.addExperimentLevelFeature(category, grid);
     }
 
     parsingConfig.features[feature.featureLabel] = feature;
 
     // load feature selector
+    reloadFeatureSelector();
+}
+
+function reloadFeatureSelector(){
     var featureSelectElement = document.getElementById("featureList");
-    var optionValue = feature.featureLabel;
-    var option = document.createElement("option");
-    option.setAttribute("value", optionValue);
-    option.innerHTML = feature.featureLabel + " "
-                        + Grid.getRowLabel(grid.selectedStartRow) + grid.selectedStartCol
-                        +":"+ Grid.getRowLabel(grid.selectedEndRow) + grid.selectedEndCol;
-    featureSelectElement.appendChild(option);
 
+    // clear feature selector
+    featureSelectElement.innerHTML = "";
 
-    // legacy compliance
-    //$('#select-to-child').append("<option value='"+(numberOfFeatures+1)+"'>"+category+"</option>");
+    // load feature selector
+    for (var featureName in parsingConfig.features){
+        var feature = parsingConfig.features[featureName];
+        var option = document.createElement("option");
+        option.setAttribute("value", featureName);
+        option.innerHTML = featureName;
+        featureSelectElement.appendChild(option);
+        addEvent(option, "click", handleFeatureSelect);
+    }
+}
+
+function handleFeatureSelect(event){
+    var target = getTargetElement(event);
+    var featureName = target.value;
+
+    reloadLabelSelector(featureName);
+}
+
+function reloadLabelSelector(featureName){
+    var labelSelectElement = document.getElementById("labelList");
+    var plates = parsingConfig.findPlates(1, examiner.rowsSize, grid);
+
+    // clear the label selector
+    labelSelectElement.innerHTML = "";
+    labelSelectElement.scrollTop = 0;
+    // load the label selector
+    var descriptors = parsingConfig.getFeatureValuesDescriptors(featureName, plates,grid);
+
+    for (var i=0; i<descriptors.length; i++){
+        var value = descriptors[i].cell;
+        var descriptor = descriptors[i].descriptor;
+        var option = document.createElement("option");
+        option.setAttribute("value", value);
+        option.innerHTML = descriptor;
+        labelSelectElement.appendChild(option);
+    }
 }
 
 
@@ -368,54 +287,6 @@ function cellRangeChange(inputElement){
     selectCells(start[0], start[1], end[0], end[1]);
 }
 
-function searchForPlateInvariates(){
-    var valueToLookFor;
-    var timesFound;
-    var possibleInvariateCoords = [];
-    var threshold
-        = Math.floor(rowsSize/((currentBottomRightCoord[0] - currentTopLeftCoord[0])*2));
-
-    for(var row=currentTopLeftCoord[0]; row<=currentBottomRightCoord[0]; row++){
-        for(var col=currentTopLeftCoord[1]; col<=currentBottomRightCoord[1]; col++){
-            valueToLookFor = grid.getDataPoint(row, col).trim();
-            if (valueToLookFor){
-                timesFound = 0;
-                for(var obsRow = currentBottomRightCoord[0]+1; obsRow<=rowsSize; obsRow++){
-                    var currentValue = grid.getDataPoint(obsRow, col);
-                    if (currentValue && currentValue.trim() == valueToLookFor){
-                        timesFound++;
-                        if (timesFound >= threshold) {
-
-                            possibleInvariateCoords.push([row,col]);
-                            break;
-                        }
-                    }
-
-                }
-
-
-            }
-        }
-    }
-
-    var invariatesKey = colorPicker.getDistinctColorKey();
-    grid.setCellColors(possibleInvariateCoords, "#a00", invariatesKey);
-
-    // load invariate cell selector
-    var invariateSelectElement = document.getElementById("invariateSelect");
-    for (var i=0; i<possibleInvariateCoords.length; i++){
-        var cellRow = possibleInvariateCoords[i][0] + 1;
-        var cellCol = possibleInvariateCoords[i][1];
-        var cellValue = grid.getDataPoint(cellRow, cellCol);
-        var optionValue = cellRow+":"+ cellCol;
-
-        var option = document.createElement("option");
-        option.setAttribute("value", optionValue);
-        option.innerHTML = cellValue + " : " + Grid.getRowLabel(cellRow) + cellCol;
-        invariateSelectElement.appendChild(option);
-    }
-}
-
 function createParsingConfig(){
     var name = document.getElementById("parsingName").value;
     var machine = document.getElementById("machineName").value;
@@ -465,6 +336,26 @@ function getActiveTab(){
     return $("#tabs").tabs( "option", "active" );
 }
 
+/**
+ * getTargetElement - This function get a reference to the HTML element that
+ * triggered an event
+ * @param event - the event for which we wish the element that triggered it
+ * @returns - the HTML element that triggered the event.
+ */
+function getTargetElement(event){
+    'use strict';
+    var target;
+
+    // make sure we have the event, depending on different browser
+    // capabilities
+    event = event || window.event;
+
+    // get a reference to the element that triggered the event, depending on
+    // different browser capabilities
+    target = event.target || event.srcElement;
+
+    return target;
+} // end of function getTargetElement
 
 /**
  * addEvent - This function adds an event handler to an html element in
