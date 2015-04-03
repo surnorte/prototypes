@@ -99,13 +99,25 @@ function reloadFeatureSelector(){
         option.setAttribute("value", featureName);
         option.innerHTML = featureName;
         featureSelectElement.appendChild(option);
-        addEvent(option, "click", handleFeatureSelect);
     }
 }
 
 function handleFeatureSelect(event){
     var target = getTargetElement(event);
     var featureName = target.value;
+    var featureRangeInput = document.getElementById("featureCellRange");
+    var featureNameInput = document.getElementById("featureCategory");
+
+    var feature = parsingConfig.features[featureName];
+    var featureRange = Grid.getRowLabel(feature.topLeftCoords[0])
+            + feature.topLeftCoords[1] + ":"
+            + Grid.getRowLabel(feature.bottomRightCoords[0])
+            + feature.bottomRightCoords[1];
+    var featureType = feature.typeOfFeature;
+
+    featureRangeInput.value = featureRange;
+    featureNameInput.value = featureName;
+    document.getElementById(featureType).checked = true;
 
     reloadLabelSelector(featureName);
 }
@@ -397,11 +409,13 @@ function init(){
     addEvent("saveFeature", "click", makeFeature);
     addEvent("applyFeatures", "click", applyFeatures);
     addEvent("saveConfigToServer", "click", saveConfigToServer);
+    addEvent("featureList", "change", handleFeatureSelect);
 
     // to get jQuery-UI tab functionality working
     $( "#tabs" ).tabs({
         active: 0
     });
+
 }
 
 window.onload = init;
